@@ -120,7 +120,7 @@ export default function SalesPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem>View Details</DropdownMenuItem>
-                          <DropdownMenuItem disabled={order.invoiceGenerated}>
+                          <DropdownMenuItem>
                             <FileText className="mr-2 h-4 w-4"/> Generate Invoice
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
