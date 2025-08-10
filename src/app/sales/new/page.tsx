@@ -204,9 +204,12 @@ function ProductSelector({ onSelect, selectedProduct }: { onSelect: (product: Pr
               {products.map((product) => (
                 <CommandItem
                   key={product.id}
-                  value={product.name}
-                  onSelect={() => {
-                    onSelect(product);
+                  value={product.id}
+                  onSelect={(currentValue) => {
+                    const selected = products.find(p => p.id === currentValue);
+                    if (selected) {
+                        onSelect(selected);
+                    }
                     setOpen(false);
                   }}
                 >
