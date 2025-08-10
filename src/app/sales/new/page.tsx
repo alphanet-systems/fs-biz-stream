@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -63,6 +64,9 @@ export default function NewSalePage() {
                         Fill out the form below to create a new sales order.
                     </p>
                 </div>
+                 <Link href="/sales" passHref>
+                    <Button variant="outline">Cancel</Button>
+                </Link>
             </div>
             
             <Card>

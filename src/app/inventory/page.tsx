@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
 import { products } from "@/lib/mock-data";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription, SheetClose } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
@@ -72,7 +72,7 @@ export default function InventoryPage() {
                 <TableRow key={product.id}>
                   <TableCell>
                     <Image
-                      src={product.imageUrl ?? "https://placehold.co/64x64.png"}
+                      src={product.imageUrl ?? "https://placehold.co/100x100.png"}
                       alt={product.name}
                       width={64}
                       height={64}
@@ -159,7 +159,10 @@ function AddProductSheet() {
                         <Input id="category" placeholder="e.g., Electronics" />
                     </div>
                 </div>
-                <div className="mt-6 flex justify-end">
+                <div className="mt-6 flex justify-end gap-2">
+                    <SheetClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                    </SheetClose>
                     <Button>Save Product</Button>
                 </div>
             </SheetContent>

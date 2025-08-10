@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
 import { clients } from "@/lib/mock-data";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription, SheetClose } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
@@ -135,7 +135,10 @@ function AddClientSheet() {
                         <Input id="address" placeholder="e.g., 123 Main St, Anytown, USA" />
                     </div>
                 </div>
-                <div className="mt-6 flex justify-end">
+                <div className="mt-6 flex justify-end gap-2">
+                    <SheetClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                    </SheetClose>
                     <Button>Save Client</Button>
                 </div>
             </SheetContent>

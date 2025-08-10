@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { type CalendarEvent } from "@/types";
 import { calendarEvents, clients } from "@/lib/mock-data";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -174,7 +174,10 @@ function AddEventDialog() {
             </div>
         </div>
         )}
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+            <DialogClose asChild>
+                <Button variant="outline">Cancel</Button>
+            </DialogClose>
             <Button>Save Event</Button>
         </div>
       </DialogContent>

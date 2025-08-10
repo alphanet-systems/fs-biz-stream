@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { products } from '@/lib/mock-data';
 import Image from 'next/image';
 import { Plus, Minus, Trash2, Search, CreditCard, Landmark, DollarSign } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 type CartItem = {
@@ -158,7 +158,12 @@ function CheckoutDialog({ total }: { total: number }) {
                          <p className="text-center text-muted-foreground">Bank transfer details would be shown here.</p>
                     </TabsContent>
                 </Tabs>
-                <Button className="w-full mt-4" size="lg">Confirm Payment</Button>
+                <div className="flex justify-end gap-2 mt-4">
+                   <DialogClose asChild>
+                       <Button variant="outline">Cancel</Button>
+                   </DialogClose>
+                   <Button size="lg">Confirm Payment</Button>
+                </div>
             </DialogContent>
         </Dialog>
     )
