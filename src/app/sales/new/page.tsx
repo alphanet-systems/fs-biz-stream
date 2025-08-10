@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { clients, products } from '@/lib/mock-data';
-import { PlusCircle, Trash2, Package, Check, ChevronsUpDown } from 'lucide-react';
+import { PlusCircle, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { type Product } from '@/types';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -249,7 +249,9 @@ function ProductSelector({ onSelect, selectedProductId }: { onSelect: (product: 
                             />
                             <div className='flex justify-between w-full'>
                                 <span>{product.name}</span>
-                                <span className='text-muted-foreground text-xs'>Stock: {product.stock}</span>
+                                <span className={cn('text-xs', selectedProductId === product.id ? 'text-accent-foreground' : 'text-muted-foreground')}>
+                                  Stock: {product.stock}
+                                </span>
                             </div>
                         </Button>
                     ))}
