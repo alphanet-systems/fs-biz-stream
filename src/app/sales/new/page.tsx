@@ -13,6 +13,7 @@ import { PlusCircle, Trash2, Package } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { type Product } from '@/types';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type LineItem = {
     id: string;
@@ -164,9 +165,15 @@ export default function NewSalePage() {
                         </div>
                     </div>
                 </CardContent>
-                <CardFooter className="flex justify-end gap-2">
-                    <Button variant="outline">Save as Draft</Button>
-                    <Button>Create Sales Order</Button>
+                <CardFooter className="flex justify-between items-center">
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="generate-invoice" />
+                        <Label htmlFor="generate-invoice">Generate Invoice</Label>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline">Save as Draft</Button>
+                        <Button>Create Sales Order</Button>
+                    </div>
                 </CardFooter>
             </Card>
         </div>
@@ -212,4 +219,3 @@ function ProductSelector({ onSelect, selectedProduct }: { onSelect: (product: Pr
     </Popover>
   );
 }
-
