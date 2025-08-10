@@ -1,28 +1,52 @@
+
 "use client";
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { clients } from '@/lib/mock-data';
-import { PlusCircle, Trash2, Download } from 'lucide-react';
+import { clients, products } from '@/lib/mock-data';
+import { PlusCircle, Trash2, Package } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { type Product } from '@/types';
 
-export default function NewInvoicePage() {
-    const [lineItems, setLineItems] = useState([{ id: 1, description: '', quantity: 1, unitPrice: 0 }]);
+type LineItem = {
+    id: string;
+    productId: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    stock: number;
+};
+
+
+export default function NewSalePage() {
+    const [lineItems, setLineItems] = useState<LineItem[]>([]);
 
     const handleAddLineItem = () => {
-        setLineItems([...lineItems, { id: Date.now(), description: '', quantity: 1, unitPrice: 0 }]);
+        setLineItems([...lineItems, { id: Date.now().toString(), productId: '', description: '', quantity: 1, unitPrice: 0, stock: 0 }]);
     };
     
-    const handleRemoveLineItem = (id: number) => {
+    const handleRemoveLineItem = (id: string) => {
         setLineItems(lineItems.filter(item => item.id !== id));
     };
 
-    const handleLineItemChange = (id: number, field: string, value: any) => {
+    const handleLineItemChange = (id: string, field: keyof LineItem, value: any) => {
         setLineItems(lineItems.map(item => item.id === id ? { ...item, [field]: value } : item));
+    };
+
+    const handleProductSelect = (id: string, product: Product) => {
+        setLineItems(lineItems.map(item => item.id === id ? { 
+            ...item,
+            productId: product.id,
+            description: product.name,
+            unitPrice: product.price,
+            stock: product.stock
+        } : item));
     };
 
     const subtotal = lineItems.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
@@ -33,16 +57,16 @@ export default function NewInvoicePage() {
         <div className="flex-1 p-4 md:p-8 pt-6">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Create New Invoice</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Create New Sale</h1>
                     <p className="text-muted-foreground">
-                        Fill out the form below to generate a new invoice.
+                        Fill out the form below to create a new sales order.
                     </p>
                 </div>
             </div>
             
             <Card>
                 <CardHeader>
-                    <div className="grid md:grid-cols-3 gap-6">
+                    <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <Label htmlFor="client">Client</Label>
                             <Select>
@@ -57,12 +81,8 @@ export default function NewInvoicePage() {
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="issueDate">Issue Date</Label>
-                            <Input id="issueDate" type="date" defaultValue={new Date().toISOString().substring(0, 10)} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="dueDate">Due Date</Label>
-                            <Input id="dueDate" type="date" />
+                            <Label htmlFor="orderDate">Order Date</Label>
+                            <Input id="orderDate" type="date" defaultValue={new Date().toISOString().substring(0, 10)} />
                         </div>
                     </div>
                 </CardHeader>
@@ -70,7 +90,7 @@ export default function NewInvoicePage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Description</TableHead>
+                                <TableHead>Product / Service</TableHead>
                                 <TableHead className="w-[100px]">Quantity</TableHead>
                                 <TableHead className="w-[150px]">Unit Price</TableHead>
                                 <TableHead className="w-[150px] text-right">Total</TableHead>
@@ -81,11 +101,13 @@ export default function NewInvoicePage() {
                             {lineItems.map(item => (
                                 <TableRow key={item.id}>
                                     <TableCell>
-                                        <Input 
-                                            placeholder="Item description" 
-                                            value={item.description}
-                                            onChange={e => handleLineItemChange(item.id, 'description', e.target.value)}
+                                        <ProductSelector 
+                                            onSelect={(product) => handleProductSelect(item.id, product)}
+                                            selectedProduct={products.find(p => p.id === item.productId)}
                                         />
+                                        {item.productId && item.quantity > item.stock && (
+                                            <p className='text-xs text-red-500 mt-1'>Warning: Quantity exceeds available stock ({item.stock})</p>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         <Input 
@@ -93,11 +115,12 @@ export default function NewInvoicePage() {
                                             value={item.quantity}
                                             onChange={e => handleLineItemChange(item.id, 'quantity', parseInt(e.target.value))}
                                             min="1"
+                                            className={item.quantity > item.stock ? 'border-red-500' : ''}
                                         />
                                     </TableCell>
                                     <TableCell>
                                         <Input 
-                                            type="number" 
+                                            type="number"
                                             value={item.unitPrice}
                                             onChange={e => handleLineItemChange(item.id, 'unitPrice', parseFloat(e.target.value))}
                                             min="0"
@@ -116,9 +139,9 @@ export default function NewInvoicePage() {
                         </TableBody>
                         <TableFooter>
                            <TableRow>
-                             <TableCell colSpan={4}>
+                             <TableCell colSpan={5}>
                                 <Button variant="outline" size="sm" onClick={handleAddLineItem}>
-                                    <PlusCircle className="h-4 w-4 mr-2" /> Add Line Item
+                                    <PlusCircle className="h-4 w-4 mr-2" /> Add Item
                                 </Button>
                              </TableCell>
                            </TableRow>
@@ -143,13 +166,50 @@ export default function NewInvoicePage() {
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
                     <Button variant="outline">Save as Draft</Button>
-                    <Button variant="secondary">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download PDF
-                    </Button>
-                    <Button>Create & Send Invoice</Button>
+                    <Button>Create Sales Order</Button>
                 </CardFooter>
             </Card>
         </div>
     );
 }
+
+function ProductSelector({ onSelect, selectedProduct }: { onSelect: (product: Product) => void, selectedProduct?: Product }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
+          {selectedProduct ? selectedProduct.name : "Select product..."}
+          <Package className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <Command>
+          <CommandInput placeholder="Search products..." />
+          <CommandList>
+            <CommandEmpty>No product found.</CommandEmpty>
+            <CommandGroup>
+              {products.map((product) => (
+                <CommandItem
+                  key={product.id}
+                  value={product.name}
+                  onSelect={() => {
+                    onSelect(product);
+                    setOpen(false);
+                  }}
+                >
+                  <div className='flex justify-between w-full'>
+                    <span>{product.name}</span>
+                    <span className='text-muted-foreground text-xs'>Stock: {product.stock}</span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+

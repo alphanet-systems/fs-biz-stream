@@ -44,7 +44,7 @@ const menuItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/clients", label: "Clients", icon: Users },
-  { href: "/invoicing", label: "Invoicing", icon: FileText },
+  { href: "/sales", label: "Sales", icon: FileText },
   { href: "/payments", label: "Payments", icon: Banknote },
   { href: "/pos", label: "Point of Sale", icon: ShoppingCart },
   { href: "/inventory", label: "Inventory", icon: Boxes },
@@ -69,7 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 href={item.href}
-                isActive={pathname === item.href}
+                isActive={pathname.startsWith(item.href) && (item.href === '/' ? pathname === '/' : true) }
               >
                 <item.icon />
                 {item.label}

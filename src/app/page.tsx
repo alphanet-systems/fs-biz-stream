@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -29,8 +30,8 @@ import {
   ChartConfig,
 } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { type Invoice, type ChartData } from "@/types";
-import { invoices, chartData } from "@/lib/mock-data";
+import { type SalesOrder, type ChartData } from "@/types";
+import { salesOrders, chartData } from "@/lib/mock-data";
 
 const chartConfig = {
   profit: {
@@ -44,12 +45,12 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function DashboardPage() {
-  const totalRevenue = invoices.reduce(
+  const totalRevenue = salesOrders.reduce(
     (acc, inv) =>
-      inv.status === "Paid" ? acc + inv.total : acc,
+      inv.status === "Fulfilled" ? acc + inv.total : acc,
     0
   );
-  const totalDue = invoices.reduce(
+  const totalPending = salesOrders.reduce(
     (acc, inv) =>
       inv.status === "Pending" ? acc + inv.total : acc,
     0
@@ -105,13 +106,13 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Due</CardTitle>
+            <CardTitle className="text-sm font-medium">Pending Sales</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalDue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">${totalPending.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
-              Awaiting payment on {invoices.filter(inv => inv.status === 'Pending').length} invoices
+              Across {salesOrders.filter(inv => inv.status === 'Pending').length} orders
             </p>
           </CardContent>
         </Card>
@@ -152,9 +153,9 @@ export default function DashboardPage() {
         </Card>
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle>Recent Invoices</CardTitle>
+            <CardTitle>Recent Sales</CardTitle>
             <CardDescription>
-              The most recent invoices from your clients.
+              The most recent sales from your clients.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -167,30 +168,30 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {invoices.slice(0, 5).map((invoice) => (
-                  <TableRow key={invoice.id}>
+                {salesOrders.slice(0, 5).map((order) => (
+                  <TableRow key={order.id}>
                     <TableCell>
-                      <div className="font-medium">{invoice.client.name}</div>
+                      <div className="font-medium">{order.client.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {invoice.client.email}
+                        {order.client.email}
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant={
-                          invoice.status === "Paid"
+                          order.status === "Fulfilled"
                             ? "default"
-                            : invoice.status === "Pending"
+                            : order.status === "Pending"
                             ? "secondary"
                             : "outline"
                         }
-                        className={invoice.status === 'Paid' ? 'bg-green-500/20 text-green-700' : ''}
+                        className={order.status === 'Fulfilled' ? 'bg-green-500/20 text-green-700' : ''}
                       >
-                        {invoice.status}
+                        {order.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      ${invoice.total.toFixed(2)}
+                      ${order.total.toFixed(2)}
                     </TableCell>
                   </TableRow>
                 ))}

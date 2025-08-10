@@ -1,3 +1,4 @@
+
 export type Client = {
   id: string;
   name: string;
@@ -17,14 +18,15 @@ export type Product = {
   imageUrl?: string;
 };
 
-export type Invoice = {
+export type SalesOrder = {
   id: string;
-  invoiceNumber: string;
+  orderNumber: string;
   client: Client;
-  issueDate: string;
-  dueDate: string;
+  orderDate: string;
+  dueDate?: string;
   items: {
     id: string;
+    productId: string;
     description: string;
     quantity: number;
     unitPrice: number;
@@ -32,7 +34,8 @@ export type Invoice = {
   subtotal: number;
   tax: number;
   total: number;
-  status: "Paid" | "Pending" | "Overdue";
+  status: "Pending" | "Fulfilled" | "Cancelled";
+  invoiceGenerated: boolean;
 };
 
 export type Payment = {
