@@ -188,7 +188,6 @@ export default function NewSalePage() {
 
 function ProductSelector({ onSelect, selectedProduct }: { onSelect: (product: Product) => void, selectedProduct?: Product }) {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState(selectedProduct?.name || "");
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -217,7 +216,6 @@ function ProductSelector({ onSelect, selectedProduct }: { onSelect: (product: Pr
                     const selected = products.find(p => p.name.toLowerCase() === currentValue.toLowerCase());
                     if (selected) {
                         onSelect(selected);
-                        setValue(selected.name)
                     }
                     setOpen(false);
                   }}
