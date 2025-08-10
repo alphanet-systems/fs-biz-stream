@@ -15,6 +15,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { type Product } from '@/types';
 import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
+import { Check } from 'lucide-react';
 
 type LineItem = {
     id: string;
@@ -186,11 +188,17 @@ export default function NewSalePage() {
 
 function ProductSelector({ onSelect, selectedProduct }: { onSelect: (product: Product) => void, selectedProduct?: Product }) {
   const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(selectedProduct?.name || "");
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+        >
           {selectedProduct ? selectedProduct.name : "Select product..."}
           <Package className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -198,8 +206,8 @@ function ProductSelector({ onSelect, selectedProduct }: { onSelect: (product: Pr
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
         <Command>
           <CommandInput placeholder="Search products..." />
+          <CommandEmpty>No product found.</CommandEmpty>
           <CommandList>
-            <CommandEmpty>No product found.</CommandEmpty>
             <CommandGroup>
               {products.map((product) => (
                 <CommandItem
@@ -209,10 +217,17 @@ function ProductSelector({ onSelect, selectedProduct }: { onSelect: (product: Pr
                     const selected = products.find(p => p.name.toLowerCase() === currentValue.toLowerCase());
                     if (selected) {
                         onSelect(selected);
+                        setValue(selected.name)
                     }
                     setOpen(false);
                   }}
                 >
+                    <Check
+                        className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedProduct?.id === product.id ? "opacity-100" : "opacity-0"
+                        )}
+                    />
                   <div className='flex justify-between w-full'>
                     <span>{product.name}</span>
                     <span className='text-muted-foreground text-xs'>Stock: {product.stock}</span>
