@@ -64,9 +64,6 @@ export default function NewSalePage() {
                         Fill out the form below to create a new sales order.
                     </p>
                 </div>
-                 <Link href="/sales" passHref>
-                    <Button variant="outline">Cancel</Button>
-                </Link>
             </div>
             
             <Card>
@@ -175,6 +172,9 @@ export default function NewSalePage() {
                         <Label htmlFor="generate-invoice">Generate Invoice</Label>
                     </div>
                     <div className="flex gap-2">
+                        <Link href="/sales" passHref>
+                           <Button variant="outline">Cancel</Button>
+                        </Link>
                         <Button variant="outline">Save as Draft</Button>
                         <Button>Create Sales Order</Button>
                     </div>
