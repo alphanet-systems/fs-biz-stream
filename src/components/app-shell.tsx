@@ -67,14 +67,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
-              <Link href={item.href} passHref>
-                <SidebarMenuButton
-                  isActive={pathname === item.href}
-                >
-                  <item.icon />
-                  {item.label}
-                </SidebarMenuButton>
-              </Link>
+              <SidebarMenuButton
+                href={item.href}
+                isActive={pathname === item.href}
+              >
+                <item.icon />
+                {item.label}
+              </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
