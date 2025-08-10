@@ -72,8 +72,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   isActive={pathname === item.href}
                   asChild
                 >
-                  <item.icon />
-                  {item.label}
+                  <a>
+                    <item.icon />
+                    {item.label}
+                  </a>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
