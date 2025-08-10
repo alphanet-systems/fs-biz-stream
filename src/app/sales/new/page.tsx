@@ -249,7 +249,7 @@ function ProductSelector({ onSelect, selectedProductId }: { onSelect: (product: 
                             />
                             <div className='flex justify-between w-full'>
                                 <span>{product.name}</span>
-                                <span className={cn('text-xs', selectedProductId === product.id ? 'text-accent-foreground' : 'text-muted-foreground')}>
+                                <span className={cn('text-xs text-muted-foreground', selectedProductId === product.id && 'text-accent-foreground')}>
                                   Stock: {product.stock}
                                 </span>
                             </div>
