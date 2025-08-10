@@ -1,5 +1,31 @@
-# Firebase Studio
+# BizStream - Small Business ERP
 
-This is a NextJS starter in Firebase Studio.
+This is a Next.js application built in Firebase Studio, designed as an all-in-one ERP (Enterprise Resource Planning) solution for small businesses. It provides a suite of tools to manage core business operations from a single, modern web interface.
 
-To get started, take a look at src/app/page.tsx.
+## Key Features
+
+- **Dashboard**: Get an at-a-glance overview of your business with key metrics like revenue, expenses, and recent sales.
+- **Sales Management**: Create and manage sales orders. This module is integrated with the inventory to check stock levels in real-time.
+- **Client Management**: Keep a record of all your clients, manage their contact information, and view their history.
+- **Inventory Tracking**: Manage your products, track stock levels, and view product details.
+- **Point of Sale (POS)**: A simple and intuitive interface for processing in-person sales.
+- **Calendar**: Schedule appointments, meetings, and other important events.
+- **Payments**: Track incoming and outgoing payments to manage your cash flow effectively.
+
+## Tech Stack
+
+- **Framework**: [Next.js](https://nextjs.org/) (with App Router)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **UI Components**: [ShadCN UI](https://ui.shadcn.com/)
+- **Generative AI**: [Genkit](https://firebase.google.com/docs/genkit)
+
+## Getting Started
+
+To get started with development, run the following command to start the local server:
+
+```bash
+npm run dev
+```
+
+The application will be available at `http://localhost:9002`.
