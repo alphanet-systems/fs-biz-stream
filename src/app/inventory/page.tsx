@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from "react";
@@ -71,7 +72,7 @@ export default function InventoryPage() {
                 <TableRow key={product.id}>
                   <TableCell>
                     <Image
-                      src={product.imageUrl ?? "https://placehold.co/64x64"}
+                      src={product.imageUrl ?? "https://placehold.co/64x64.png"}
                       alt={product.name}
                       width={64}
                       height={64}

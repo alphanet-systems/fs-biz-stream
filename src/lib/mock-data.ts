@@ -9,12 +9,12 @@ export const clients: Client[] = [
 ];
 
 export const products: Product[] = [
-  { id: "p1", name: "Ergo-Comfort Keyboard", sku: "KB-4532", category: "Electronics", stock: 120, price: 79.99, imageUrl: "https://placehold.co/100x100" },
-  { id: "p2", name: "HD Webcam 1080p", sku: "WC-1080", category: "Electronics", stock: 85, price: 49.99, imageUrl: "https://placehold.co/100x100" },
-  { id: "p3", name: "Wireless Optical Mouse", sku: "MS-9876", category: "Electronics", stock: 200, price: 25.50, imageUrl: "https://placehold.co/100x100" },
-  { id: "p4", name: "Leather Office Chair", sku: "CH-3321", category: "Furniture", stock: 30, price: 249.99, imageUrl: "https://placehold.co/100x100" },
-  { id: "p5", name: "Adjustable Standing Desk", sku: "DK-7890", category: "Furniture", stock: 45, price: 399.00, imageUrl: "https://placehold.co/100x100" },
-  { id: "p6", name: "Premium Coffee Beans (1kg)", sku: "CF-001", category: "Office Supplies", stock: 300, price: 22.00, imageUrl: "https://placehold.co/100x100" },
+  { id: "p1", name: "Ergo-Comfort Keyboard", sku: "KB-4532", category: "Electronics", stock: 120, price: 79.99, imageUrl: "https://placehold.co/64x64.png" },
+  { id: "p2", name: "HD Webcam 1080p", sku: "WC-1080", category: "Electronics", stock: 85, price: 49.99, imageUrl: "https://placehold.co/64x64.png" },
+  { id: "p3", name: "Wireless Optical Mouse", sku: "MS-9876", category: "Electronics", stock: 200, price: 25.50, imageUrl: "https://placehold.co/64x64.png" },
+  { id: "p4", name: "Leather Office Chair", sku: "CH-3321", category: "Furniture", stock: 30, price: 249.99, imageUrl: "https://placehold.co/64x64.png" },
+  { id: "p5", name: "Adjustable Standing Desk", sku: "DK-7890", category: "Furniture", stock: 45, price: 399.00, imageUrl: "https://placehold.co/64x64.png" },
+  { id: "p6", name: "Premium Coffee Beans (1kg)", sku: "CF-001", category: "Office Supplies", stock: 300, price: 22.00, imageUrl: "https://placehold.co/64x64.png" },
 ];
 
 export const invoices: Invoice[] = [

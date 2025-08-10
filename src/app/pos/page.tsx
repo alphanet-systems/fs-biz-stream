@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -58,7 +59,7 @@ export default function PosPage() {
                         {products.map(product => (
                             <Card key={product.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => addToCart(product)}>
                                 <CardContent className="p-2">
-                                    <Image src={product.imageUrl ?? 'https://placehold.co/150x150'} alt={product.name} width={150} height={150} className="w-full rounded-md object-cover" data-ai-hint="product image"/>
+                                    <Image src={product.imageUrl ?? 'https://placehold.co/150x150.png'} alt={product.name} width={150} height={150} className="w-full rounded-md object-cover" data-ai-hint="product image"/>
                                 </CardContent>
                                 <CardFooter className="p-2 flex flex-col items-start">
                                     <p className="font-semibold text-sm truncate w-full">{product.name}</p>
