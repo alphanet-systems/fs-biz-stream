@@ -204,9 +204,9 @@ function ProductSelector({ onSelect, selectedProduct }: { onSelect: (product: Pr
               {products.map((product) => (
                 <CommandItem
                   key={product.id}
-                  value={product.id}
+                  value={product.name}
                   onSelect={(currentValue) => {
-                    const selected = products.find(p => p.id === currentValue);
+                    const selected = products.find(p => p.name.toLowerCase() === currentValue.toLowerCase());
                     if (selected) {
                         onSelect(selected);
                     }
