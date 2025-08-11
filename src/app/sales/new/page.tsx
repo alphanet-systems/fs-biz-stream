@@ -236,7 +236,7 @@ function ProductSelector({ onSelect, selectedProductId }: { onSelect: (product: 
                             key={product.id}
                             variant="ghost"
                             className={cn(
-                                "w-full justify-start font-normal",
+                                "w-full justify-start font-normal group",
                                 selectedProductId === product.id && "bg-accent text-accent-foreground"
                             )}
                             onClick={() => handleSelect(product)}
@@ -248,8 +248,8 @@ function ProductSelector({ onSelect, selectedProductId }: { onSelect: (product: 
                                 )}
                             />
                             <div className='flex justify-between w-full'>
-                                <span>{product.name}</span>
-                                <span className={cn('text-xs text-muted-foreground', selectedProductId === product.id && 'text-accent-foreground')}>
+                                <span className={cn(selectedProductId !== product.id && "group-hover:text-accent-foreground")}>{product.name}</span>
+                                <span className={cn('text-xs', selectedProductId === product.id ? 'text-accent-foreground' : 'text-muted-foreground group-hover:text-accent-foreground')}>
                                   Stock: {product.stock}
                                 </span>
                             </div>
