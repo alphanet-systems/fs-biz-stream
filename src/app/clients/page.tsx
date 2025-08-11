@@ -109,7 +109,8 @@ function AddClientSheet() {
 
     const isFormValid = useMemo(() => {
         const isNameValid = name.trim() !== '';
-        const isEmailValid = email.trim() !== '' && /\S+@\S+\.\S+/.test(email);
+        // A simple regex to check for a valid email format.
+        const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
         return isNameValid && isEmailValid;
     }, [name, email]);
 

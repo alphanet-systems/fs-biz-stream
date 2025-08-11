@@ -126,7 +126,11 @@ function AddProductSheet() {
     const [category, setCategory] = useState('');
 
     const isFormValid = useMemo(() => {
-        return name.trim() !== '' && sku.trim() !== '' && stock.trim() !== '' && price.trim() !== '';
+        const isNameValid = name.trim() !== '';
+        const isSkuValid = sku.trim() !== '';
+        const isStockValid = stock.trim() !== '' && !isNaN(Number(stock));
+        const isPriceValid = price.trim() !== '' && !isNaN(Number(price));
+        return isNameValid && isSkuValid && isStockValid && isPriceValid;
     }, [name, sku, stock, price]);
 
     return (
