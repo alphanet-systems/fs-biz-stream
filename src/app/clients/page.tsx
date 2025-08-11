@@ -108,7 +108,9 @@ function AddClientSheet() {
     const [address, setAddress] = useState('');
 
     const isFormValid = useMemo(() => {
-        return name.trim() !== '' && email.trim() !== '';
+        const isNameValid = name.trim() !== '';
+        const isEmailValid = email.trim() !== '' && /\S+@\S+\.\S+/.test(email);
+        return isNameValid && isEmailValid;
     }, [name, email]);
 
     return (
