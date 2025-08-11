@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { PlusCircle, Search, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -119,6 +119,16 @@ export default function InventoryPage() {
 }
 
 function AddProductSheet() {
+    const [name, setName] = useState('');
+    const [sku, setSku] = useState('');
+    const [stock, setStock] = useState('');
+    const [price, setPrice] = useState('');
+    const [category, setCategory] = useState('');
+
+    const isFormValid = useMemo(() => {
+        return name.trim() !== '' && sku.trim() !== '' && stock.trim() !== '' && price.trim() !== '';
+    }, [name, sku, stock, price]);
+
     return (
         <Sheet>
             <SheetTrigger asChild>
@@ -137,33 +147,33 @@ function AddProductSheet() {
                 <Separator className="my-4"/>
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Product Name</Label>
-                        <Input id="name" placeholder="e.g., Ergo-Comfort Keyboard" />
+                        <Label htmlFor="name">Product Name *</Label>
+                        <Input id="name" placeholder="e.g., Ergo-Comfort Keyboard" value={name} onChange={e => setName(e.target.value)} />
                     </div>
                      <div className="space-y-2">
-                        <Label htmlFor="sku">SKU</Label>
-                        <Input id="sku" placeholder="e.g., KB-4532" />
+                        <Label htmlFor="sku">SKU *</Label>
+                        <Input id="sku" placeholder="e.g., KB-4532" value={sku} onChange={e => setSku(e.target.value)} />
                     </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="stock">Stock Quantity</Label>
-                            <Input id="stock" type="number" placeholder="e.g., 120" />
+                            <Label htmlFor="stock">Stock Quantity *</Label>
+                            <Input id="stock" type="number" placeholder="e.g., 120" value={stock} onChange={e => setStock(e.target.value)} />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="price">Price</Label>
-                            <Input id="price" type="number" placeholder="e.g., 79.99" />
+                            <Label htmlFor="price">Price *</Label>
+                            <Input id="price" type="number" placeholder="e.g., 79.99" value={price} onChange={e => setPrice(e.target.value)} />
                         </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="category">Category</Label>
-                        <Input id="category" placeholder="e.g., Electronics" />
+                        <Input id="category" placeholder="e.g., Electronics" value={category} onChange={e => setCategory(e.target.value)} />
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end gap-2">
                     <SheetClose asChild>
                         <Button variant="outline">Cancel</Button>
                     </SheetClose>
-                    <Button>Save Product</Button>
+                    <Button disabled={!isFormValid}>Save Product</Button>
                 </div>
             </SheetContent>
         </Sheet>

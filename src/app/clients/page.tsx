@@ -1,6 +1,7 @@
+
 "use client";
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { PlusCircle, Search, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -101,6 +102,15 @@ export default function ClientsPage() {
 }
 
 function AddClientSheet() {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [address, setAddress] = useState('');
+
+    const isFormValid = useMemo(() => {
+        return name.trim() !== '' && email.trim() !== '';
+    }, [name, email]);
+
     return (
         <Sheet>
             <SheetTrigger asChild>
@@ -119,27 +129,27 @@ function AddClientSheet() {
                 <Separator className="my-4"/>
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Full Name</Label>
-                        <Input id="name" placeholder="e.g., John Doe" />
+                        <Label htmlFor="name">Full Name *</Label>
+                        <Input id="name" placeholder="e.g., John Doe" value={name} onChange={e => setName(e.target.value)} />
                     </div>
                      <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" type="email" placeholder="e.g., john.doe@example.com" />
+                        <Label htmlFor="email">Email Address *</Label>
+                        <Input id="email" type="email" placeholder="e.g., john.doe@example.com" value={email} onChange={e => setEmail(e.target.value)} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="phone">Phone Number</Label>
-                        <Input id="phone" type="tel" placeholder="e.g., 123-456-7890" />
+                        <Input id="phone" type="tel" placeholder="e.g., 123-456-7890" value={phone} onChange={e => setPhone(e.target.value)} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="address">Address</Label>
-                        <Input id="address" placeholder="e.g., 123 Main St, Anytown, USA" />
+                        <Input id="address" placeholder="e.g., 123 Main St, Anytown, USA" value={address} onChange={e => setAddress(e.target.value)} />
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end gap-2">
                     <SheetClose asChild>
                         <Button variant="outline">Cancel</Button>
                     </SheetClose>
-                    <Button>Save Client</Button>
+                    <Button disabled={!isFormValid}>Save Client</Button>
                 </div>
             </SheetContent>
         </Sheet>

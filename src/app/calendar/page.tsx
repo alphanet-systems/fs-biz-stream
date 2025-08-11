@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -124,7 +125,13 @@ export default function CalendarPage() {
 
 function AddEventDialog() {
   const [eventTitle, setEventTitle] = useState('');
+  const [eventDate, setEventDate] = useState('');
   const suggestedClients = eventTitle ? clients.filter(c => c.name.toLowerCase().includes(eventTitle.toLowerCase())) : [];
+
+  const isFormValid = useMemo(() => {
+    return eventTitle.trim() !== '' && eventDate.trim() !== '';
+  }, [eventTitle, eventDate]);
+
 
   return (
     <Dialog>
@@ -148,7 +155,7 @@ function AddEventDialog() {
             <Label htmlFor="date" className="text-right">
               Date & Time
             </Label>
-            <Input id="date" type="datetime-local" className="col-span-3" />
+            <Input id="date" type="datetime-local" value={eventDate} onChange={(e) => setEventDate(e.target.value)} className="col-span-3" />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="description" className="text-right">
@@ -178,7 +185,7 @@ function AddEventDialog() {
             <DialogClose asChild>
                 <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button>Save Event</Button>
+            <Button disabled={!isFormValid}>Save Event</Button>
         </div>
       </DialogContent>
     </Dialog>
