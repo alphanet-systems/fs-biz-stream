@@ -29,6 +29,7 @@ type LineItem = {
 
 export default function NewSalePage() {
     const [lineItems, setLineItems] = useState<LineItem[]>([]);
+    const [selectedClientId, setSelectedClientId] = useState<string | undefined>();
 
     const handleAddLineItem = () => {
         setLineItems([...lineItems, { id: Date.now().toString(), productId: '', description: '', quantity: 1, unitPrice: 0, stock: 0 }]);
@@ -73,7 +74,7 @@ export default function NewSalePage() {
                     <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <Label htmlFor="client">Client</Label>
-                            <Select>
+                            <Select onValueChange={setSelectedClientId} value={selectedClientId}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a client" />
                                 </SelectTrigger>
@@ -179,8 +180,8 @@ export default function NewSalePage() {
                         <Link href="/sales" passHref>
                            <Button variant="outline">Cancel</Button>
                         </Link>
-                        <Button variant="outline">Save as Draft</Button>
-                        <Button>Create Sales Order</Button>
+                        <Button variant="outline" disabled={!selectedClientId}>Save as Draft</Button>
+                        <Button disabled={!selectedClientId}>Create Sales Order</Button>
                     </div>
                 </CardFooter>
             </Card>
@@ -248,8 +249,8 @@ function ProductSelector({ onSelect, selectedProductId }: { onSelect: (product: 
                                 )}
                             />
                             <div className='flex justify-between w-full'>
-                                <span className={cn(selectedProductId !== product.id && "group-hover:text-accent-foreground")}>{product.name}</span>
-                                <span className={cn('text-xs', selectedProductId === product.id ? 'text-accent-foreground' : 'text-muted-foreground group-hover:text-accent-foreground')}>
+                                <span className={cn("group-hover:text-accent-foreground")}>{product.name}</span>
+                                <span className={cn('text-xs group-hover:text-accent-foreground', selectedProductId === product.id ? 'text-accent-foreground' : 'text-muted-foreground')}>
                                   Stock: {product.stock}
                                 </span>
                             </div>
