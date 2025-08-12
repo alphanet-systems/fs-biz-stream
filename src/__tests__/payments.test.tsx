@@ -34,7 +34,7 @@ const mockToast = jest.fn();
 
 const mockCounterparties: Counterparty[] = [
   { id: '1', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', address: '123 Tech Ave', types: ['CLIENT'], createdAt: new Date(), updatedAt: new Date() },
-  { id: '2', name: 'Solutions Co.', email: 'support@solutions.co', phone: '234-567-8901', address: '456 Business Blvd', types: ['CLIENT'], createdAt: new Date(), updatedAt: new Date() },
+  { id: '2', name: 'Solutions Co.', email: 'support@solutions.co', phone: '234-567-8901', address: '456 Business Blvd', types: ['CLIENT', 'VENDOR'], createdAt: new Date(), updatedAt: new Date() },
 ];
 
 const mockPayments: PaymentWithCounterparty[] = [
@@ -101,8 +101,14 @@ describe('PaymentsPage', () => {
   it('opens the add income sheet and creates a new income payment', async () => {
     const newPaymentData = { amount: 500, type: 'Bank Transfer', status: 'Received', description: 'New Income', counterpartyId: '1' };
     const returnedPayment: Payment = { ...newPaymentData, id: 'pay3', date: new Date(), createdAt: new Date(), updatedAt: new Date() };
-    mockCreatePayment.mockResolvedValue({ success: true, data: returnedPayment });
+    const returnedPaymentWithCounterparty: PaymentWithCounterparty = { ...returnedPayment, counterparty: mockCounterparties[0] };
     
+    // The create action returns the raw payment, but the page state requires the joined data.
+    // So we need to mock both the creation and the subsequent refetch.
+    mockCreatePayment.mockResolvedValue({ success: true, data: returnedPayment });
+    mockGetPayments.mockResolvedValue([...mockPayments, returnedPaymentWithCounterparty]);
+
+
     render(<PaymentsPage />);
     const user = userEvent.setup();
 
@@ -118,9 +124,10 @@ describe('PaymentsPage', () => {
     await user.type(screen.getByLabelText('Description *'), 'New Income');
 
     // Select a counterparty
-    const counterpartySelect = screen.getByRole('combobox');
-    await user.click(counterpartySelect);
-    await user.click(await screen.findByText('Innovate Inc.'));
+    const counterpartySelect = screen.getAllByRole('combobox')[0]; // There are multiple selects on the page now
+    fireEvent.mouseDown(counterpartySelect);
+    const innovateOption = await screen.findByText('Innovate Inc.');
+    fireEvent.click(innovateOption);
 
     // Save
     await user.click(screen.getByRole('button', { name: 'Save Payment' }));
@@ -143,6 +150,7 @@ describe('PaymentsPage', () => {
       });
     });
 
+    // We now refetch payments on success, so wait for the new item to appear
     await waitFor(() => {
       expect(screen.getByText('New Income')).toBeInTheDocument();
     });
