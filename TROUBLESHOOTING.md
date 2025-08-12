@@ -1,6 +1,6 @@
 # Troubleshooting Common Development Issues
 
-This document outlines solutions to common errors that may occur during the initial setup and development of this project, particularly related to Prisma and the development environment.
+This document outlines solutions to common errors that may occur during the initial setup and development of this project, particularly related to Prisma and NextAuth.js.
 
 ## 1. Prisma Error: "The table main.User does not exist"
 
@@ -40,3 +40,113 @@ This document outlines solutions to common errors that may occur during the init
   }
   ```
   After making this change, running `prisma generate` (which happens automatically on `npm install`) downloads the correct binaries, resolving the conflict.
+
+## 3. NextAuth.js Error: "MissingCSRF" in Cloud IDEs
+
+- **Error Log:** `Error: [auth][error] MissingCSRF: CSRF token was missing during an action callback.` This often occurs when logging in from the integrated browser preview in a cloud development environment like Firebase Studio.
+
+- **Cause:** The integrated browser is an `<iframe>`. Modern browsers have strict security policies that block "third-party cookies" inside iframes to prevent tracking. The Next.js server, running on `localhost` inside a container, sets an authentication cookie for that `localhost` domain. Your browser, viewing the app from a public `...cloudworkstations.dev` URL, sees this as a cross-site context and refuses to send the cookie back with the login request. The NextAuth.js backend, expecting a CSRF token in the cookie, sees that it's missing and throws a security error.
+
+- **Solution:** The solution involves multiple steps to configure NextAuth.js to be compatible with this proxied, iframe environment.
+
+  **Step 1: Configure Iframe-Friendly Cookies in `src/auth.ts`**
+  You must explicitly tell NextAuth.js to set cookies with the `SameSite=None` and `Secure=true` attributes. This is done by adding a `cookies` block to the `NextAuth` configuration. The `__Secure-` and `__Host-` prefixes are a best practice that enforces these security policies.
+
+  ```typescript
+  // src/auth.ts
+
+  export const {
+    handlers: { GET, POST },
+    auth,
+    signIn,
+    signOut
+  } = NextAuth({
+    // ... adapter, providers
+    session: {
+      strategy: 'jwt',
+    },
+    cookies: {
+      sessionToken: {
+        name: `__Secure-next-auth.session-token`,
+        options: {
+          httpOnly: true,
+          sameSite: "none",
+          path: "/",
+          secure: true,
+        },
+      },
+      callbackUrl: {
+        name: `__Secure-next-auth.callback-url`,
+        options: {
+          sameSite: "none",
+          path: "/",
+          secure: true,
+        },
+      },
+      csrfToken: {
+        name: `__Host-next-auth.csrf-token`,
+        options: {
+          httpOnly: true,
+          sameSite: "none",
+          path: "/",
+          secure: true,
+        },
+      },
+    },
+    // ... rest of config
+  });
+  ```
+  
+  **Step 2: Trust the Proxy Host Header in `src/auth.ts`**
+  You also need to tell NextAuth.js to trust the `Host` header from the proxy server, which will be the public URL of your environment. This is done with the `trustHost` option.
+
+  ```typescript
+  // src/auth.ts
+  
+  export const {
+    // ...
+  } = NextAuth({
+    // ... adapter, providers, session, cookies
+    trustHost: true,
+    pages: {
+      signIn: '/login',
+    },
+    debug: process.env.NODE_ENV === "development",
+  });
+  ```
+
+  **Step 3: Ensure `SessionProvider` is Wrapping the App**
+  Your entire application must be wrapped in a `SessionProvider` to make the authentication context (and the CSRF token) available to all client components. This is done by creating a client component wrapper and using it in the root layout.
+
+  ```tsx
+  // src/components/AuthProvider.tsx
+  "use client";
+  import { SessionProvider } from "next-auth/react";
+  import React from "react";
+
+  export function AuthProvider({ children }: { children: React.ReactNode }) {
+    return <SessionProvider>{children}</SessionProvider>;
+  }
+  ```
+
+  ```tsx
+  // src/app/layout.tsx
+  import { AuthProvider } from '@/components/AuthProvider';
+  // ...
+  export default async function RootLayout({ children }) {
+    return (
+      <html lang="en">
+        <body>
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
+          <Toaster />
+        </body>
+      </html>
+    );
+  }
+  ```
+  
+These configuration changes work together to make NextAuth.js fully functional within the security constraints of a proxied, iframe-based cloud development environment.
+
+    
