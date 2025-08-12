@@ -99,14 +99,16 @@ This approach uses a set of best-in-class, independent, open-source tools that w
 - **API Layer:** **PostgREST.** A standalone web server that turns our PostgreSQL database directly into a secure, RESTful API. It's extremely lightweight and fast.
 - **Authentication/RBAC:** **Lucia Auth.** An open-source, framework-agnostic authentication library that gives us full control to build our own user management and role-based access control system within Next.js.
 - **File Storage:** **MinIO.** An open-source, S3-compatible object storage server we can self-host for CSV uploads, logos, and backups.
-- **How it Works:** The Next.js app, using Lucia Auth, handles user login and generates a secure JSON Web Token (JWT). For all subsequent data requests, our frontend sends this JWT to the PostgREST server. PostgREST validates the token and uses the `role` claim inside it to enforce database-level permissions for that specific request. This provides a highly secure and decoupled architecture.
+- **How it Works:** The Next.js app, using Lucia Auth, handles user login and generates a secure JSON Web Token (JWT). For all subsequent data requests, our frontend sends this JWT to the PostgREST server. PostgREST validates the token and uses the `role` claim inside it to switch to a corresponding database role for that specific transaction. **Authorization is then handled by PostgreSQL itself** using its powerful Row-Level Security (RLS) features. This means our permission logic (e.g., "users can only see their own invoices") is written in SQL and lives directly in the database, providing a highly secure and centralized architecture.
 
 *   **Pros:**
     *   **Maximum Control & No Bloat:** We only include the exact functionality we need.
     *   **Un-opinionated:** We are not tied to any single platform's way of doing things.
     *   **Component Swapping:** Each part (auth, storage) is independent and can be replaced in the future if needed.
+    *   **Centralized Security:** Authorization logic is consolidated in the database layer, which is considered a security best practice.
 *   **Cons:**
     *   **Highest Initial Integration Effort:** We are responsible for connecting these different services and ensuring they work together seamlessly.
+    *   **Requires SQL for Authorization:** Writing and managing RLS policies requires comfort with SQL.
 
 ### **Scenario B: The "Integrated BaaS" Stack**
 
@@ -140,7 +142,8 @@ This approach leverages the Next.js framework to its maximum potential, minimizi
     *   **Excellent Developer Experience:** We stay within the familiar and highly-optimized Next.js ecosystem.
 *   **Cons:**
     *   **"Reinventing the Wheel":** We would be manually creating an API for our database, a task that PostgREST (Scenario A) or Appwrite (Scenario B) would largely automate.
-    *   **Can Become Monolithic:** As the application grows, having all logic in one place could become complex if not managed carefully.
+    *   **Scattered Authorization Logic:** Permission checks would live within the application code (in various API routes), which can become complex to manage if not handled with care.
+
 ---
 
 This document will serve as our guide as we proceed to the next stages of technical design and implementation.
