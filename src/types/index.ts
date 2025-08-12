@@ -61,3 +61,10 @@ export type ChartData = {
   profit: number;
   expenses: number;
 };
+
+// Remove this if it's not used
+export type User = {
+    id: string;
+    name: string;
+    email: string;
+};

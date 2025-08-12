@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useTransition } from "react";
 import { PlusCircle, Search, File, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { payments as initialPayments, clients } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
@@ -22,7 +21,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/hooks/use-toast";
-import { type Payment, type Client } from "@/types";
+import { type Payment, type Client } from "@prisma/client";
+import { createPayment, getPayments, getClients } from "@/lib/actions";
 
 const getStatusVariant = (status: "Received" | "Sent") => {
   return status === "Received" 
@@ -30,10 +30,16 @@ const getStatusVariant = (status: "Received" | "Sent") => {
     : "bg-red-500/20 text-red-700 hover:bg-red-500/30";
 };
 
+type PaymentWithClient = Payment & { client: Client };
+
 export default function PaymentsPage() {
-  const [paymentList, setPaymentList] = useState<Payment[]>(initialPayments);
+  const [paymentList, setPaymentList] = useState<PaymentWithClient[]>([]);
+
+  React.useEffect(() => {
+    getPayments().then(setPaymentList);
+  }, []);
   
-  const handleAddPayment = (newPayment: Payment) => {
+  const onPaymentAdded = (newPayment: PaymentWithClient) => {
     setPaymentList(prevList => [newPayment, ...prevList]);
   };
 
@@ -47,8 +53,8 @@ export default function PaymentsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-            <AddPaymentSheet type="Received" onAddPayment={handleAddPayment} />
-            <AddPaymentSheet type="Sent" onAddPayment={handleAddPayment} />
+            <AddPaymentSheet type="Received" onPaymentAdded={onPaymentAdded} />
+            <AddPaymentSheet type="Sent" onPaymentAdded={onPaymentAdded} />
         </div>
       </div>
       
@@ -86,14 +92,14 @@ export default function PaymentsPage() {
               <TableBody>
                 {paymentList.map((payment) => (
                   <TableRow key={payment.id}>
-                    <TableCell>{payment.date}</TableCell>
+                    <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
                     <TableCell className="font-medium">{payment.client.name}</TableCell>
                     <TableCell>{payment.description}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{payment.type}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={getStatusVariant(payment.status)}>
+                      <Badge variant="outline" className={getStatusVariant(payment.status as "Received" | "Sent")}>
                         {payment.status}
                       </Badge>
                     </TableCell>
@@ -111,46 +117,66 @@ export default function PaymentsPage() {
   );
 }
 
-function AddPaymentSheet({ type, onAddPayment }: { type: 'Received' | 'Sent', onAddPayment: (payment: Payment) => void }) {
+function AddPaymentSheet({ type, onPaymentAdded }: { type: 'Received' | 'Sent', onPaymentAdded: (payment: PaymentWithClient) => void }) {
     const [open, setOpen] = useState(false);
     const [amount, setAmount] = useState('');
     const [selectedClientId, setSelectedClientId] = useState<string | undefined>();
     const [description, setDescription] = useState('');
     const [paymentType, setPaymentType] = useState<'Cash' | 'Bank Transfer'>('Bank Transfer');
+    const [clients, setClients] = useState<Client[]>([]);
+    const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
-    const isFormValid = amount && Number(amount) > 0 && selectedClientId && description.trim() !== '';
+    React.useEffect(() => {
+        if (open) {
+            getClients().then(setClients);
+        }
+    }, [open]);
+
+    const isFormValid = useMemo(() => {
+        return amount && Number(amount) > 0 && selectedClientId && description.trim() !== '';
+    }, [amount, selectedClientId, description]);
 
     const title = type === 'Received' ? 'Add Income' : 'Add Expense';
     const clientLabel = type === 'Received' ? 'Client' : 'Vendor';
 
-    const handleSave = () => {
-        if (!isFormValid) return;
-        const client = clients.find(c => c.id === selectedClientId) as Client;
-
-        const newPayment: Payment = {
-            id: `pay-${Date.now()}`,
-            date: new Date().toISOString().split('T')[0],
-            client,
-            description,
-            amount: type === 'Received' ? Number(amount) : -Number(amount),
-            type: paymentType,
-            status: type,
-        };
-
-        onAddPayment(newPayment);
-
-        toast({
-            title: `Payment ${type}`,
-            description: `The ${type.toLowerCase()} of $${Number(amount).toFixed(2)} has been recorded.`,
-        });
-
-        // Reset form
-        setOpen(false);
+    const resetForm = () => {
         setAmount('');
         setSelectedClientId(undefined);
         setDescription('');
         setPaymentType('Bank Transfer');
+    };
+
+    const handleSave = () => {
+        if (!isFormValid) return;
+        
+        startTransition(async () => {
+            const result = await createPayment({
+                amount: type === 'Received' ? Number(amount) : -Number(amount),
+                type: paymentType,
+                status: type,
+                description,
+                clientId: selectedClientId!,
+            });
+
+            if (result.success && result.data) {
+                const client = clients.find(c => c.id === result.data!.clientId)!;
+                onPaymentAdded({ ...result.data, client });
+
+                toast({
+                    title: `Payment ${type}`,
+                    description: `The ${type.toLowerCase()} of $${Number(amount).toFixed(2)} has been recorded.`,
+                });
+                resetForm();
+                setOpen(false);
+            } else {
+                 toast({
+                    title: "Error",
+                    description: result.error || "Could not save the payment.",
+                    variant: "destructive",
+                });
+            }
+        });
     };
 
     return (
@@ -208,7 +234,9 @@ function AddPaymentSheet({ type, onAddPayment }: { type: 'Received' | 'Sent', on
                 </div>
                 <div className="mt-6 flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={!isFormValid}>Save Payment</Button>
+                    <Button onClick={handleSave} disabled={!isFormValid || isPending}>
+                        {isPending ? 'Saving...' : 'Save Payment'}
+                    </Button>
                 </div>
             </SheetContent>
         </Sheet>
