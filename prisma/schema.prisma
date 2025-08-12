@@ -7,179 +7,112 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String // In a real app, this would be a hash
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  company   Company? @relation(fields: [companyId], references: [id])
-  companyId String?
+  id            String       @id @default(cuid())
+  name          String?
+  email         String?      @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  // Optional for RBAC
+  role          String       @default("user") // e.g., "admin", "user"
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
-enum Role {
-  ADMIN
-  USER
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
 }
 
-model Company {
-  id                  String   @id @default(cuid())
-  name                String
-  address             String?
-  vatNumber           String?
-  invoicePrefix       String   @default("INV-")
-  invoiceCounter      Int      @default(1)
-  salesOrderPrefix    String   @default("SO-")
-  salesOrderCounter   Int      @default(1)
-  purchaseOrderPrefix String   @default("PO-")
-  purchaseOrderCounter Int      @default(1)
-  defaultWalletId     String?
-  users               User[]
-  counterparties      Counterparty[]
-  products            Product[]
-  wallets             Wallet[]
-  purchaseOrders      PurchaseOrder[]
-  salesOrders         SalesOrder[]
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Counterparty {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?
-  phone     String?
-  address   String?
-  type      CounterpartyType
-  company   Company  @relation(fields: [companyId], references: [id])
-  companyId String
-  purchases PurchaseOrder[]
-  sales     SalesOrder[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
-enum CounterpartyType {
-  CLIENT
-  VENDOR
-  BOTH
+// Our application models
+model Client {
+  id          String @id @default(cuid())
+  name        String
+  email       String @unique
+  phone       String?
+  address     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  salesOrders SalesOrder[]
 }
 
 model Product {
-  id                String              @id @default(cuid())
-  name              String
-  sku               String?
-  description       String?
-  purchasePrice     Float               @default(0)
-  salePrice         Float
-  stock             Int                 @default(0)
-  company           Company             @relation(fields: [companyId], references: [id])
-  companyId         String
-  purchaseOrderItems PurchaseOrderItem[]
-  salesOrderItems   SalesOrderItem[]
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-}
-
-model Wallet {
-  id             String        @id @default(cuid())
-  name           String
-  balance        Float         @default(0)
-  company        Company       @relation(fields: [companyId], references: [id])
-  companyId      String
-  transactions   Transaction[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-}
-
-model PurchaseOrder {
-  id                String              @id @default(cuid())
-  orderNumber       String
-  vendor            Counterparty        @relation(fields: [vendorId], references: [id])
-  vendorId          String
-  status            PurchaseOrderStatus @default(PENDING)
-  items             PurchaseOrderItem[]
-  total             Float
-  company           Company             @relation(fields: [companyId], references: [id])
-  companyId         String
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  relatedTransaction Transaction?
-}
-
-model PurchaseOrderItem {
-  id              String        @id @default(cuid())
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-  purchaseOrderId String
-  product         Product       @relation(fields: [productId], references: [id])
-  productId       String
-  quantity        Int
+  id              String @id @default(cuid())
+  name            String
+  sku             String @unique
+  category        String?
+  stock           Int    @default(0)
   price           Float
-  total           Float
-}
-
-enum PurchaseOrderStatus {
-  PENDING
-  RECEIVED
-  CANCELLED
+  imageUrl        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  salesOrderItems SalesOrderItem[]
 }
 
 model SalesOrder {
-  id           String           @id @default(cuid())
-  orderNumber  String
-  client       Counterparty     @relation(fields: [clientId], references: [id])
-  clientId     String
-  status       SalesOrderStatus @default(PENDING)
-  items        SalesOrderItem[]
-  subtotal     Float
-  tax          Float
-  total        Float
-  company      Company          @relation(fields: [companyId], references: [id])
-  companyId    String
-  transactions Transaction[]
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id             String      @id @default(cuid())
+  orderNumber    String      @unique
+  clientId       String
+  orderDate      DateTime
+  dueDate        DateTime?
+  status         String      // Pending, Fulfilled, Cancelled
+  subtotal       Float
+  tax            Float
+  total          Float
+  invoiceGenerated Boolean   @default(false)
+  
+  client          Client           @relation(fields: [clientId], references: [id])
+  items           SalesOrderItem[]
+  
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 }
 
 model SalesOrderItem {
-  id           String     @id @default(cuid())
-  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id])
-  salesOrderId String
-  product      Product    @relation(fields: [productId], references: [id])
-  productId    String
-  quantity     Int
-  price        Float
-  total        Float
-}
-
-enum SalesOrderStatus {
-  PENDING
-  FULFILLED
-  CANCELLED
-}
-
-model Transaction {
-  id              String         @id @default(cuid())
-  wallet          Wallet         @relation(fields: [walletId], references: [id])
-  walletId        String
-  type            TransactionType
-  amount          Float // Positive for income, negative for expenses
-  description     String
-  salesOrder      SalesOrder?    @relation(fields: [salesOrderId], references: [id])
-  salesOrderId    String?
-  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onUpdate: NoAction, onDelete: NoAction) @unique
-  purchaseOrderId String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-}
-
-enum TransactionType {
-  INCOME
-  EXPENSE
-  TRANSFER
+  id          String   @id @default(cuid())
+  orderId     String
+  productId   String
+  description String
+  quantity    Int
+  unitPrice   Float
+  
+  order       SalesOrder @relation(fields: [orderId], references: [id])
+  product     Product    @relation(fields: [productId], references: [id])
+  
+  @@unique([orderId, productId])
 }
