@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
 import { type Counterparty, type Product, type Payment, type SalesOrder, type PurchaseOrder, type Wallet } from '@prisma/client';
+import { jsonToCsv } from '@/ai/flows/export-flow';
 
 type ServerActionResult<T> = {
   success: boolean;
@@ -308,3 +309,30 @@ export async function createPurchaseOrder(input: PurchaseOrderInput): Promise<Se
         return { success: false, error: 'Failed to create purchase order.' };
     }
 }
+
+// Export Actions
+export async function exportProductsToCsv(): Promise<ServerActionResult<string>> {
+  try {
+    const products = await prisma.product.findMany({
+      select: {
+        name: true,
+        sku: true,
+        category: true,
+        price: true,
+        stock: true,
+      },
+    });
+
+    if (products.length === 0) {
+      return { success: false, error: "No products to export." };
+    }
+
+    const csv = await jsonToCsv({ data: products });
+    return { success: true, data: csv };
+  } catch (error) {
+    console.error('Error exporting products:', error);
+    return { success: false, error: 'Failed to export products to CSV.' };
+  }
+}
+
+    

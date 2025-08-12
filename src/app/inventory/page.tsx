@@ -30,11 +30,13 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { type Product } from "@prisma/client";
-import { createProduct, getProducts } from "@/lib/actions";
+import { createProduct, getProducts, exportProductsToCsv } from "@/lib/actions";
 
 export default function InventoryPage() {
   const [productList, setProductList] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isExporting, startExportTransition] = useTransition();
+  const { toast } = useToast();
 
   React.useEffect(() => {
     getProducts().then(setProductList);
@@ -48,6 +50,36 @@ export default function InventoryPage() {
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  const handleExport = () => {
+    startExportTransition(async () => {
+      const result = await exportProductsToCsv();
+      if (result.success && result.data) {
+        // Create a blob from the CSV string
+        const blob = new Blob([result.data], { type: 'text/csv;charset=utf-8;' });
+        // Create a link and trigger the download
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'products-export.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({
+          title: "Export Complete",
+          description: "Your product data has been downloaded.",
+        });
+      } else {
+        toast({
+          title: "Export Failed",
+          description: result.error || "Could not export product data.",
+          variant: "destructive",
+        });
+      }
+    });
+  };
+
 
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">
@@ -59,9 +91,9 @@ export default function InventoryPage() {
               <CardDescription>Manage your products and their stock levels.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
                 <File className="h-4 w-4 mr-2" />
-                Export
+                {isExporting ? 'Exporting...' : 'Export'}
               </Button>
               <AddProductSheet onProductCreated={onProductCreated}/>
             </div>
@@ -289,3 +321,5 @@ function ValidationMessage({ isValid, message }: { isValid: boolean; message: st
         </div>
     );
 }
+
+    
