@@ -5,7 +5,12 @@ import prisma from './lib/prisma';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { type User } from '@prisma/client';
 
-const authConfig = NextAuth({
+export const { 
+  handlers, 
+  auth, 
+  signIn, 
+  signOut 
+} = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: 'jwt',
@@ -17,7 +22,7 @@ const authConfig = NextAuth({
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials: any) {
         if (!credentials?.email || !credentials.password) {
           throw new CredentialsSignin('Missing email or password.');
         }
@@ -30,30 +35,31 @@ const authConfig = NextAuth({
         });
 
         if (!user) {
-          console.error("No user found with that email.");
-          return null;
+          // console.log("No user found with that email.");
+          throw new CredentialsSignin("Invalid email or password.");
         }
         
+        // In a real app, you MUST hash passwords.
         const passwordsMatch = user.password === password;
 
         if (passwordsMatch) {
           return user;
         }
         
-        console.error("Passwords do not match.");
-        return null;
+        // console.log("Passwords do not match.");
+        throw new CredentialsSignin("Invalid email or password.");
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: { token: any, user: any }) {
       if (user) {
         token.id = user.id;
         token.role = (user as User).role;
       }
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: any, token: any }) {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
@@ -67,10 +73,3 @@ const authConfig = NextAuth({
   },
   debug: process.env.NODE_ENV === "development",
 });
-
-export const { 
-  handlers: { GET, POST }, 
-  auth, 
-  signIn, 
-  signOut 
-} = authConfig;
