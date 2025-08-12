@@ -28,13 +28,15 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { type Counterparty, type CounterpartyType } from "@prisma/client";
-import { createCounterparty, getCounterparties } from "@/lib/actions";
+import { createCounterparty, getCounterparties, exportCounterpartiesToCsv } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export default function CounterpartiesPage() {
   const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isExporting, startExportTransition] = useTransition();
+  const { toast } = useToast();
 
   React.useEffect(() => {
     getCounterparties().then(setCounterparties);
@@ -49,6 +51,33 @@ export default function CounterpartiesPage() {
     setCounterparties(prev => [newCounterparty, ...prev]);
   };
 
+  const handleExport = () => {
+    startExportTransition(async () => {
+      const result = await exportCounterpartiesToCsv();
+      if (result.success && result.data) {
+        const blob = new Blob([result.data], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'counterparties-export.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({
+          title: "Export Complete",
+          description: "Your counterparty data has been downloaded.",
+        });
+      } else {
+        toast({
+          title: "Export Failed",
+          description: result.error || "Could not export data.",
+          variant: "destructive",
+        });
+      }
+    });
+  };
+
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">
       <Card>
@@ -59,9 +88,9 @@ export default function CounterpartiesPage() {
               <CardDescription>Manage your clients and vendors.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
                 <File className="h-4 w-4 mr-2" />
-                Export
+                {isExporting ? 'Exporting...' : 'Export'}
               </Button>
               <AddCounterpartySheet onCounterpartyCreated={onCounterpartyCreated} />
             </div>

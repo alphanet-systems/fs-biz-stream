@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { PlusCircle, Search, File, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,8 @@ import { MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type SalesOrder, type Counterparty } from "@prisma/client";
-import { getSalesOrders } from "@/lib/actions";
+import { getSalesOrders, exportSalesOrdersToCsv } from "@/lib/actions";
+import { useToast } from "@/hooks/use-toast";
 
 type SalesOrderWithCounterparty = SalesOrder & { counterparty: Counterparty };
 
@@ -46,10 +47,39 @@ const getStatusVariant = (status: SalesOrder['status']) => {
 
 export default function SalesPage() {
   const [salesOrders, setSalesOrders] = useState<SalesOrderWithCounterparty[]>([]);
+  const [isExporting, startExportTransition] = useTransition();
+  const { toast } = useToast();
 
   useEffect(() => {
     getSalesOrders().then(setSalesOrders);
   }, []);
+
+  const handleExport = () => {
+    startExportTransition(async () => {
+      const result = await exportSalesOrdersToCsv();
+      if (result.success && result.data) {
+        const blob = new Blob([result.data], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'sales-orders-export.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({
+          title: "Export Complete",
+          description: "Your sales order data has been downloaded.",
+        });
+      } else {
+        toast({
+          title: "Export Failed",
+          description: result.error || "Could not export data.",
+          variant: "destructive",
+        });
+      }
+    });
+  };
 
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">
@@ -61,9 +91,9 @@ export default function SalesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
                 <File className="h-4 w-4 mr-2" />
-                Export
+                {isExporting ? 'Exporting...' : 'Export'}
             </Button>
             <Link href="/sales/new" passHref>
                 <Button>

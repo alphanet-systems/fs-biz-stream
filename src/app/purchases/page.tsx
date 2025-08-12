@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { PlusCircle, Search, File, FileText, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type PurchaseOrder, type Counterparty } from "@prisma/client";
-import { getPurchaseOrders } from "@/lib/actions";
+import { getPurchaseOrders, exportPurchaseOrdersToCsv } from "@/lib/actions";
+import { useToast } from "@/hooks/use-toast";
 
 type PurchaseOrderWithCounterparty = PurchaseOrder & { counterparty: Counterparty };
 
@@ -45,10 +46,40 @@ const getStatusVariant = (status: PurchaseOrder['status']) => {
 
 export default function PurchasesPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrderWithCounterparty[]>([]);
+  const [isExporting, startExportTransition] = useTransition();
+  const { toast } = useToast();
+
 
   useEffect(() => {
     getPurchaseOrders().then(setPurchaseOrders);
   }, []);
+  
+  const handleExport = () => {
+    startExportTransition(async () => {
+      const result = await exportPurchaseOrdersToCsv();
+      if (result.success && result.data) {
+        const blob = new Blob([result.data], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'purchase-orders-export.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({
+          title: "Export Complete",
+          description: "Your purchase order data has been downloaded.",
+        });
+      } else {
+        toast({
+          title: "Export Failed",
+          description: result.error || "Could not export data.",
+          variant: "destructive",
+        });
+      }
+    });
+  };
 
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">
@@ -60,9 +91,9 @@ export default function PurchasesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
                 <File className="h-4 w-4 mr-2" />
-                Export
+                {isExporting ? 'Exporting...' : 'Export'}
             </Button>
             <Link href="/purchases/new" passHref>
                 <Button>

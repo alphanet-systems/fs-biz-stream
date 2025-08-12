@@ -334,3 +334,86 @@ export async function exportProductsToCsv(): Promise<ServerActionResult<string>>
     return { success: false, error: 'Failed to export products to CSV.' };
   }
 }
+
+export async function exportCounterpartiesToCsv(): Promise<ServerActionResult<string>> {
+  try {
+    const counterparties = await prisma.counterparty.findMany({
+      select: {
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        types: true,
+      },
+    });
+
+    if (counterparties.length === 0) {
+      return { success: false, error: "No counterparties to export." };
+    }
+    // The AI flow expects a simple array of objects. We need to format the `types` array.
+    const dataForCsv = counterparties.map(c => ({...c, types: c.types.join(', ')}));
+    const csv = await jsonToCsv({ data: dataForCsv });
+    return { success: true, data: csv };
+  } catch (error) {
+    console.error('Error exporting counterparties:', error);
+    return { success: false, error: 'Failed to export counterparties to CSV.' };
+  }
+}
+
+export async function exportSalesOrdersToCsv(): Promise<ServerActionResult<string>> {
+  try {
+    const orders = await prisma.salesOrder.findMany({
+        include: { counterparty: true },
+        orderBy: { orderDate: 'desc' },
+    });
+
+    if (orders.length === 0) {
+      return { success: false, error: "No sales orders to export." };
+    }
+    
+    const dataForCsv = orders.map(o => ({
+        orderNumber: o.orderNumber,
+        clientName: o.counterparty.name,
+        orderDate: o.orderDate.toLocaleDateString(),
+        status: o.status,
+        subtotal: o.subtotal,
+        tax: o.tax,
+        total: o.total,
+    }));
+
+    const csv = await jsonToCsv({ data: dataForCsv });
+    return { success: true, data: csv };
+  } catch (error) {
+    console.error('Error exporting sales orders:', error);
+    return { success: false, error: 'Failed to export sales orders to CSV.' };
+  }
+}
+
+export async function exportPurchaseOrdersToCsv(): Promise<ServerActionResult<string>> {
+  try {
+    const orders = await prisma.purchaseOrder.findMany({
+        include: { counterparty: true },
+        orderBy: { orderDate: 'desc' },
+    });
+
+    if (orders.length === 0) {
+      return { success: false, error: "No purchase orders to export." };
+    }
+    
+    const dataForCsv = orders.map(o => ({
+        orderNumber: o.orderNumber,
+        vendorName: o.counterparty.name,
+        orderDate: o.orderDate.toLocaleDateString(),
+        status: o.status,
+        subtotal: o.subtotal,
+        tax: o.tax,
+        total: o.total,
+    }));
+
+    const csv = await jsonToCsv({ data: dataForCsv });
+    return { success: true, data: csv };
+  } catch (error) {
+    console.error('Error exporting purchase orders:', error);
+    return { success: false, error: 'Failed to export purchase orders to CSV.' };
+  }
+}
