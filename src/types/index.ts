@@ -1,44 +1,11 @@
 
-import { type Payment as PrismaPayment } from "@prisma/client";
 
-export type Client = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  createdAt: string;
-};
+import { type Payment as PrismaPayment, type Client as PrismaClient, type Product as PrismaProduct, type SalesOrder as PrismaSalesOrder } from "@prisma/client";
 
-export type Product = {
-  id: string;
-  name: string;
-  sku: string;
-  category: string;
-  stock: number;
-  price: number;
-  imageUrl?: string;
-};
+export type Client = PrismaClient;
+export type Product = PrismaProduct;
+export type SalesOrder = PrismaSalesOrder;
 
-export type SalesOrder = {
-  id: string;
-  orderNumber: string;
-  client: Client;
-  orderDate: string;
-  dueDate?: string;
-  items: {
-    id: string;
-    productId: string;
-    description: string;
-    quantity: number;
-    unitPrice: number;
-  }[];
-  subtotal: number;
-  tax: number;
-  total: number;
-  status: "Pending" | "Fulfilled" | "Cancelled";
-  invoiceGenerated: boolean;
-};
 
 export type Payment = Omit<PrismaPayment, 'clientId' | 'date'> & {
   client: Client;

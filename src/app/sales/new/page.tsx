@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
@@ -9,14 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { clients, products } from '@/lib/mock-data';
 import { PlusCircle, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { type Product, type SalesOrder, type Client } from '@/types';
+import { type Product, type Client } from '@prisma/client';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { getClients, getProducts, createSalesOrder } from '@/lib/actions';
 
 type LineItem = {
     id: string;
@@ -30,9 +30,18 @@ type LineItem = {
 
 export default function NewSalePage() {
     const [lineItems, setLineItems] = useState<LineItem[]>([]);
+    const [clients, setClients] = useState<Client[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
     const [selectedClientId, setSelectedClientId] = useState<string | undefined>();
+    const [orderDate, setOrderDate] = useState(new Date().toISOString().substring(0, 10));
+    const [isPending, startTransition] = useTransition();
     const router = useRouter();
     const { toast } = useToast();
+
+    useEffect(() => {
+        getClients().then(setClients);
+        getProducts().then(setProducts);
+    }, []);
 
     const handleAddLineItem = () => {
         setLineItems([...lineItems, { id: Date.now().toString(), productId: '', description: '', quantity: 1, unitPrice: 0, stock: 0 }]);
@@ -62,39 +71,35 @@ export default function NewSalePage() {
     const total = subtotal + tax;
 
     const handleCreateOrder = () => {
-        if (!selectedClientId) return;
-        const client = clients.find(c => c.id === selectedClientId) as Client;
-        
-        const newOrder: SalesOrder = {
-            id: `so-${Date.now()}`,
-            orderNumber: `SO-2024-${Date.now().toString().slice(-4)}`,
-            client,
-            orderDate: new Date().toISOString().split('T')[0],
-            items: lineItems.map(li => ({
-                id: `item-${Date.now()}-${li.productId}`,
-                productId: li.productId,
-                description: li.description,
-                quantity: li.quantity,
-                unitPrice: li.unitPrice,
-            })),
-            subtotal,
-            tax,
-            total,
-            status: "Pending",
-            invoiceGenerated: false,
-        };
+        if (!selectedClientId || lineItems.length === 0) return;
 
-        // This is where you would typically send to an API.
-        // For now, we'll use localStorage to simulate it.
-        const existingOrders = JSON.parse(localStorage.getItem('salesOrders') || '[]');
-        localStorage.setItem('salesOrders', JSON.stringify([newOrder, ...existingOrders]));
-        
-        toast({
-            title: "Sales Order Created",
-            description: `Order ${newOrder.orderNumber} has been successfully created.`,
+        startTransition(async () => {
+            const orderInput = {
+                clientId: selectedClientId,
+                orderDate: new Date(orderDate),
+                items: lineItems.map(item => ({
+                    productId: item.productId,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                })),
+            };
+
+            const result = await createSalesOrder(orderInput);
+
+            if (result.success && result.data) {
+                toast({
+                    title: "Sales Order Created",
+                    description: `Order ${result.data.orderNumber} has been successfully created.`,
+                });
+                router.push('/sales');
+            } else {
+                toast({
+                    title: "Error",
+                    description: result.error || "Could not create the sales order.",
+                    variant: "destructive",
+                });
+            }
         });
-
-        router.push('/sales');
     };
 
     return (
@@ -126,7 +131,7 @@ export default function NewSalePage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="orderDate">Order Date</Label>
-                            <Input id="orderDate" type="date" defaultValue={new Date().toISOString().substring(0, 10)} />
+                            <Input id="orderDate" type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
                         </div>
                     </div>
                 </CardHeader>
@@ -146,6 +151,7 @@ export default function NewSalePage() {
                                 <TableRow key={item.id}>
                                     <TableCell>
                                         <ProductSelector 
+                                            products={products}
                                             onSelect={(product) => handleProductSelect(item.id, product)}
                                             selectedProductId={item.productId}
                                         />
@@ -217,8 +223,10 @@ export default function NewSalePage() {
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-                        <Button variant="outline" disabled={!selectedClientId}>Save as Draft</Button>
-                        <Button disabled={!selectedClientId || lineItems.length === 0} onClick={handleCreateOrder}>Create Sales Order</Button>
+                        <Button variant="outline" disabled={!selectedClientId || isPending}>Save as Draft</Button>
+                        <Button disabled={!selectedClientId || lineItems.length === 0 || isPending} onClick={handleCreateOrder}>
+                            {isPending ? "Creating..." : "Create Sales Order"}
+                        </Button>
                     </div>
                 </CardFooter>
             </Card>
@@ -226,7 +234,7 @@ export default function NewSalePage() {
     );
 }
 
-function ProductSelector({ onSelect, selectedProductId }: { onSelect: (product: Product) => void, selectedProductId?: string }) {
+function ProductSelector({ products, onSelect, selectedProductId }: { products: Product[], onSelect: (product: Product) => void, selectedProductId?: string }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -300,3 +308,4 @@ function ProductSelector({ onSelect, selectedProductId }: { onSelect: (product: 
     </Popover>
   );
 }
+

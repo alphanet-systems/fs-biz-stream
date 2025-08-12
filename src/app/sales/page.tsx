@@ -24,10 +24,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
-import { salesOrders as initialSalesOrders } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { type SalesOrder } from "@/types";
+import { type SalesOrder, type Client } from "@prisma/client";
+import { getSalesOrders } from "@/lib/actions";
+
+type SalesOrderWithClient = SalesOrder & { client: Client };
 
 const getStatusVariant = (status: SalesOrder['status']) => {
   switch (status) {
@@ -43,16 +45,10 @@ const getStatusVariant = (status: SalesOrder['status']) => {
 };
 
 export default function SalesPage() {
-  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+  const [salesOrders, setSalesOrders] = useState<SalesOrderWithClient[]>([]);
 
   useEffect(() => {
-    // In a real app, you'd fetch this from an API.
-    // We'll merge initial mock data with anything from localStorage.
-    const storedOrders = JSON.parse(localStorage.getItem('salesOrders') || '[]');
-    const combinedOrders = [...storedOrders, ...initialSalesOrders.filter(
-        initialOrder => !storedOrders.some((storedOrder: SalesOrder) => storedOrder.id === initialOrder.id)
-    )];
-    setSalesOrders(combinedOrders);
+    getSalesOrders().then(setSalesOrders);
   }, []);
 
   return (
@@ -113,7 +109,7 @@ export default function SalesPage() {
                   <TableRow key={order.id}>
                     <TableCell className="font-medium">{order.orderNumber}</TableCell>
                     <TableCell>{order.client.name}</TableCell>
-                    <TableCell>{order.orderDate}</TableCell>
+                    <TableCell>{new Date(order.orderDate).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={getStatusVariant(order.status)}>
                         {order.status}

@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import { type Client, type Product, type Payment } from '@prisma/client';
+import { type Client, type Product, type Payment, type SalesOrder, type SalesOrderItem } from '@prisma/client';
 
 type ServerActionResult<T> = {
   success: boolean;
@@ -104,5 +104,85 @@ export async function createPayment(data: {
     } catch (error) {
         console.error('Error creating payment:', error);
         return { success: false, error: 'Failed to create payment.' };
+    }
+}
+
+// Sales Order Actions
+export async function getSalesOrders(): Promise<(SalesOrder & { client: Client })[]> {
+    try {
+        return await prisma.salesOrder.findMany({
+            include: {
+                client: true,
+            },
+            orderBy: {
+                orderDate: 'desc',
+            },
+        });
+    } catch (error) {
+        console.error('Error fetching sales orders:', error);
+        return [];
+    }
+}
+
+type SalesOrderInput = {
+    clientId: string;
+    orderDate: Date;
+    items: {
+        productId: string;
+        quantity: number;
+        unitPrice: number;
+    }[];
+};
+
+export async function createSalesOrder(input: SalesOrderInput): Promise<ServerActionResult<SalesOrder>> {
+    try {
+        // Use a transaction to ensure all operations succeed or none do.
+        const newSalesOrder = await prisma.$transaction(async (tx) => {
+            // 1. Calculate totals
+            const subtotal = input.items.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
+            const tax = subtotal * 0.10; // 10% tax
+            const total = subtotal + tax;
+
+            // 2. Create the SalesOrder
+            const order = await tx.salesOrder.create({
+                data: {
+                    clientId: input.clientId,
+                    orderDate: input.orderDate,
+                    orderNumber: `SO-${Date.now().toString().slice(-6)}`,
+                    status: 'Pending',
+                    subtotal,
+                    tax,
+                    total,
+                    items: {
+                        create: input.items.map(item => ({
+                            productId: item.productId,
+                            quantity: item.quantity,
+                            unitPrice: item.unitPrice,
+                        })),
+                    },
+                },
+            });
+
+            // 3. Decrement stock for each product
+            for (const item of input.items) {
+                await tx.product.update({
+                    where: { id: item.productId },
+                    data: {
+                        stock: {
+                            decrement: item.quantity,
+                        },
+                    },
+                });
+            }
+
+            return order;
+        });
+
+        revalidatePath('/sales');
+        revalidatePath('/inventory'); // Revalidate inventory to show new stock levels
+        return { success: true, data: newSalesOrder };
+    } catch (error) {
+        console.error('Error creating sales order:', error);
+        return { success: false, error: 'Failed to create sales order.' };
     }
 }
