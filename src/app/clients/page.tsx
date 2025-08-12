@@ -71,6 +71,7 @@ export default function ClientsPage() {
               className="pl-8" 
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
+              aria-label="Search clients"
             />
           </div>
         </CardHeader>
@@ -241,7 +242,7 @@ function AddClientSheet({ onClientCreated }: { onClientCreated: (client: Client)
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                    <Button variant="outline" onClick={() => { setOpen(false); resetForm(); }}>Cancel</Button>
                     <Button onClick={handleSaveClient} disabled={!isFormValid || isPending}>
                       {isPending ? "Saving..." : "Save Client"}
                     </Button>
