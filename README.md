@@ -1,3 +1,4 @@
+
 # BizStream - Small Business ERP
 
 This is a Next.js application built in Firebase Studio, designed as an all-in-one ERP (Enterprise Resource Planning) solution for small businesses. It provides a suite of tools to manage core business operations from a single, modern web interface.
