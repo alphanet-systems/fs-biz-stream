@@ -78,7 +78,8 @@ export async function getPayments(): Promise<(Payment & { client: Client })[]> {
         date: 'desc',
       },
     });
-  } catch (error) {
+  } catch (error)
+ {
     console.error('Error fetching payments:', error);
     return [];
   }

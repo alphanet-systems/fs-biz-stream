@@ -34,6 +34,7 @@ type PaymentWithClient = Payment & { client: Client };
 
 export default function PaymentsPage() {
   const [paymentList, setPaymentList] = useState<PaymentWithClient[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   React.useEffect(() => {
     getPayments().then(setPaymentList);
@@ -42,6 +43,11 @@ export default function PaymentsPage() {
   const onPaymentAdded = (newPayment: PaymentWithClient) => {
     setPaymentList(prevList => [newPayment, ...prevList]);
   };
+  
+  const filteredPayments = paymentList.filter(payment =>
+    payment.client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">
@@ -72,7 +78,7 @@ export default function PaymentsPage() {
             </Button>
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search transactions..." className="pl-8" />
+              <Input placeholder="Search transactions..." className="pl-8" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
           </div>
         </div>
@@ -90,7 +96,7 @@ export default function PaymentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paymentList.map((payment) => (
+                {filteredPayments.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
                     <TableCell className="font-medium">{payment.client.name}</TableCell>
@@ -182,7 +188,7 @@ function AddPaymentSheet({ type, onPaymentAdded }: { type: 'Received' | 'Sent', 
     return (
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-                <Button variant={type === 'Received' ? 'outline' : 'default'}>
+                <Button onClick={() => setOpen(true)} variant={type === 'Received' ? 'default' : 'outline'}>
                     {type === 'Received' ? <ArrowUpCircle className="h-4 w-4 mr-2" /> : <ArrowDownCircle className="h-4 w-4 mr-2" />}
                     {title}
                 </Button>
