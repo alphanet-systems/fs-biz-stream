@@ -27,6 +27,7 @@ import {
   UserCircle,
   LogOut,
   ChevronDown,
+  Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +46,7 @@ const menuItems = [
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/clients", label: "Clients", icon: Users },
   { href: "/sales", label: "Sales", icon: FileText },
+  { href: "/purchases", label: "Purchases", icon: Truck },
   { href: "/payments", label: "Payments", icon: Banknote },
   { href: "/pos", label: "Point of Sale", icon: ShoppingCart },
   { href: "/inventory", label: "Inventory", icon: Boxes },
