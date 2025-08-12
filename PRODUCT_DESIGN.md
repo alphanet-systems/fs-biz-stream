@@ -145,5 +145,20 @@ This approach leverages the Next.js framework to its maximum potential, minimizi
     *   **Scattered Authorization Logic:** Permission checks would live within the application code (in various API routes), which can become complex to manage if not handled with care.
 
 ---
+## 7. Final Architecture Decision
 
-This document will serve as our guide as we proceed to the next stages of technical design and implementation.
+After analyzing all three scenarios against our core principles and deployment requirements (both cloud and on-premise), a final decision has been made.
+
+### Deployment Analysis Summary
+
+-   **Scenario A ("Modular Control"):** Powerful and flexible, and excellent for on-premise deployment using Docker. However, it presents the highest complexity for cloud deployments, requiring the management of at least three separate services (Next.js App, PostgREST Server, Database).
+
+-   **Scenario B ("Integrated BaaS"):** Simple to deploy both on its own cloud and on-premise. However, it introduces a significant platform dependency and the risks of bloat and vendor-specific issues that we aim to avoid.
+
+-   **Scenario C ("Next.js Full Stack"):** Offers the best balance. It is the simplest to deploy to the cloud, as modern platforms are optimized for this two-part architecture (Next.js App + Database). It is also simple to deploy on-premise with Docker, as it involves only two services.
+
+### Conclusion: The Path Forward is Scenario C
+
+We will officially proceed with **Scenario C: The "Next.js Full Stack"**.
+
+This architecture provides the optimal blend of developer experience, deployment simplicity, and control. By consolidating our logic within the Next.js framework and connecting to a standard PostgreSQL database, we minimize complexity while still satisfying our critical requirements for on-premise hosting and data ownership. This path allows us to build a robust, maintainable, and scalable application efficiently.
