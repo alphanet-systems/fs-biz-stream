@@ -2,8 +2,11 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import prisma from './lib/prisma';
+import { PrismaAdapter } from '@auth/prisma-adapter';
+import { type User } from '@prisma/client';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  adapter: PrismaAdapter(prisma),
   secret: process.env.AUTH_SECRET,
   session: {
     strategy: 'jwt',
@@ -24,28 +27,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { email: credentials.email as string },
         });
 
-        // In a real app, you should hash and compare passwords
-        // For this project, we are using plain text comparison
+        // In a real app, always hash and compare passwords.
+        // For this project, we are using plain text comparison.
         if (!user || user.password !== credentials.password) {
           return null;
         }
         
-        // The user object will be encoded in the JWT
+        // The user object will be encoded in the JWT.
         return user;
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // On initial sign in, `user` object is available
+      // On initial sign in, the `user` object is available.
       if (user) {
         token.id = user.id;
-        token.role = user.role;
+        token.role = (user as User).role; // Cast to get role
       }
       return token;
     },
     async session({ session, token }) {
-      // Add id and role to the session object
+      // Add id and role to the session object from the token.
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
@@ -55,6 +58,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   pages: {
     signIn: '/login',
-    error: '/login' // Redirect to login page on error
+    error: '/login' // Redirect to login page on any auth error
   },
 });
