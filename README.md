@@ -6,11 +6,12 @@ This is a Next.js application built in Firebase Studio, designed as an all-in-on
 
 - **Dashboard**: Get an at-a-glance overview of your business with key metrics like revenue, expenses, and recent sales.
 - **Sales Management**: Create and manage sales orders. This module is integrated with the inventory to check stock levels in real-time.
-- **Client Management**: Keep a record of all your clients, manage their contact information, and view their history.
-- **Inventory Tracking**: Manage your products, track stock levels, and view product details.
-- **Point of Sale (POS)**: A simple and intuitive interface for processing in-person sales.
+- **Purchase Management**: Create and manage purchase orders from your vendors.
+- **Counterparty Management**: Keep a record of all your clients and vendors in one place.
+- **Inventory Tracking**: Manage your products and track stock levels.
+- **Point of Sale (POS)**: A simple and intuitive interface for processing in-person sales that is fully integrated with your inventory and sales records.
+- **Payments & Wallets**: Track all incoming and outgoing payments. Create multiple "wallets" (e.g., Bank Account, Cash Drawer) to get a clear picture of where your money is.
 - **Calendar**: Schedule appointments, meetings, and other important events.
-- **Payments**: Track incoming and outgoing payments to manage your cash flow effectively.
 
 ## Tech Stack
 
