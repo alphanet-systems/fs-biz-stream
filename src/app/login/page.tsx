@@ -30,20 +30,17 @@ export default function LoginPage() {
   const handleLogin = async () => {
     setIsLoading(true);
     try {
+      // Let NextAuth handle the redirection on success.
+      // It will redirect to the callbackUrl.
+      // If there is an error, it will throw, and the catch block will handle it.
       await signIn('credentials', {
-        redirect: false,
         email,
         password,
+        callbackUrl: '/',
       });
-
-      // If signIn doesn't throw, it was successful.
-      toast({
-        title: 'Login Successful',
-        description: "Welcome back!",
-      });
-      router.push('/');
 
     } catch (error) {
+       // This block now correctly handles errors thrown by signIn
        if (error instanceof CredentialsSignin) {
           toast({
             title: 'Login Failed',
@@ -58,6 +55,8 @@ export default function LoginPage() {
           });
        }
     } finally {
+        // Set loading to false only in the error case, 
+        // as the page will redirect on success.
         setIsLoading(false);
     }
   };
