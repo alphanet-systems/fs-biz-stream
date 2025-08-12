@@ -1,15 +1,20 @@
-
 import NextAuth, { type CredentialsSignin } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import prisma from '@/lib/prisma';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { type User } from '@prisma/client';
 
-const authConfig = {
+export const { 
+  handlers: { GET, POST }, 
+  auth, 
+  signIn, 
+  signOut 
+} = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: 'jwt',
   },
+  trustHost: true,
   providers: [
     Credentials({
       name: 'Credentials',
@@ -64,6 +69,4 @@ const authConfig = {
     signIn: '/login',
   },
   debug: process.env.NODE_ENV === "development",
-};
-
-export const { handlers: { GET, POST }, auth, signIn, signOut } = NextAuth(authConfig);
+});
