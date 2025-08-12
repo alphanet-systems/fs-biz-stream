@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { PlusCircle, Search, File } from "lucide-react";
+import React, { useState, useMemo, useEffect } from "react";
+import { PlusCircle, Search, File, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import { clients } from "@/lib/mock-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription, SheetClose } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 export default function ClientsPage() {
   return (
@@ -107,12 +108,20 @@ function AddClientSheet() {
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
 
-    const isFormValid = useMemo(() => {
-        const isNameValid = name.trim() !== '';
-        // A simple regex to check for a valid email format.
-        const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-        return isNameValid && isEmailValid;
-    }, [name, email]);
+    const [isNameValid, setIsNameValid] = useState<boolean | null>(null);
+    const [isEmailValid, setIsEmailValid] = useState<boolean | null>(null);
+
+    const isFormValid = isNameValid && isEmailValid;
+
+    const validateName = (currentName: string) => {
+        setIsNameValid(currentName.trim() !== '');
+    };
+
+    const validateEmail = (currentEmail: string) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        setIsEmailValid(emailRegex.test(currentEmail));
+    };
+
 
     return (
         <Sheet>
@@ -133,11 +142,34 @@ function AddClientSheet() {
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="name">Full Name *</Label>
-                        <Input id="name" placeholder="e.g., John Doe" value={name} onChange={e => setName(e.target.value)} />
+                        <Input 
+                          id="name" 
+                          placeholder="e.g., John Doe" 
+                          value={name} 
+                          onChange={e => {
+                            setName(e.target.value);
+                            validateName(e.target.value);
+                          }}
+                          onBlur={() => validateName(name)}
+                        />
+                         {isNameValid === false && <ValidationMessage isValid={false} message="Name is required." />}
+                         {isNameValid === true && <ValidationMessage isValid={true} message="Name is valid." />}
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="email">Email Address *</Label>
-                        <Input id="email" type="email" placeholder="e.g., john.doe@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+                        <Input 
+                          id="email" 
+                          type="email" 
+                          placeholder="e.g., john.doe@example.com" 
+                          value={email} 
+                          onChange={e => {
+                            setEmail(e.target.value);
+                            validateEmail(e.target.value);
+                          }}
+                          onBlur={() => validateEmail(email)}
+                        />
+                        {isEmailValid === false && <ValidationMessage isValid={false} message="Please enter a valid email." />}
+                        {isEmailValid === true && <ValidationMessage isValid={true} message="Email is valid." />}
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="phone">Phone Number</Label>
@@ -157,4 +189,13 @@ function AddClientSheet() {
             </SheetContent>
         </Sheet>
     )
+}
+
+function ValidationMessage({ isValid, message }: { isValid: boolean; message: string }) {
+    return (
+        <div className={cn("flex items-center gap-2 text-sm", isValid ? "text-green-600" : "text-red-600")}>
+            {isValid ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+            <p>{message}</p>
+        </div>
+    );
 }

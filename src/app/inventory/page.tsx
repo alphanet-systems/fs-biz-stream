@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { PlusCircle, Search, File } from "lucide-react";
+import { PlusCircle, Search, File, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export default function InventoryPage() {
   return (
@@ -125,13 +126,30 @@ function AddProductSheet() {
     const [price, setPrice] = useState('');
     const [category, setCategory] = useState('');
 
-    const isFormValid = useMemo(() => {
-        const isNameValid = name.trim() !== '';
-        const isSkuValid = sku.trim() !== '';
-        const isStockValid = stock.trim() !== '' && !isNaN(Number(stock));
-        const isPriceValid = price.trim() !== '' && !isNaN(Number(price));
-        return isNameValid && isSkuValid && isStockValid && isPriceValid;
-    }, [name, sku, stock, price]);
+    const [isNameValid, setIsNameValid] = useState<boolean | null>(null);
+    const [isSkuValid, setIsSkuValid] = useState<boolean | null>(null);
+    const [isStockValid, setIsStockValid] = useState<boolean | null>(null);
+    const [isPriceValid, setIsPriceValid] = useState<boolean | null>(null);
+
+    const isFormValid = isNameValid && isSkuValid && isStockValid && isPriceValid;
+
+    const validateField = (field: 'name' | 'sku' | 'stock' | 'price', value: string) => {
+        const isNotEmpty = value.trim() !== '';
+        switch (field) {
+            case 'name':
+                setIsNameValid(isNotEmpty);
+                break;
+            case 'sku':
+                setIsSkuValid(isNotEmpty);
+                break;
+            case 'stock':
+                setIsStockValid(isNotEmpty && !isNaN(Number(value)) && Number(value) >= 0);
+                break;
+            case 'price':
+                setIsPriceValid(isNotEmpty && !isNaN(Number(value)) && Number(value) >= 0);
+                break;
+        }
+    };
 
     return (
         <Sheet>
@@ -152,20 +170,28 @@ function AddProductSheet() {
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="name">Product Name *</Label>
-                        <Input id="name" placeholder="e.g., Ergo-Comfort Keyboard" value={name} onChange={e => setName(e.target.value)} />
+                        <Input id="name" placeholder="e.g., Ergo-Comfort Keyboard" value={name} onChange={e => { setName(e.target.value); validateField('name', e.target.value); }} onBlur={e => validateField('name', e.target.value)}/>
+                        {isNameValid === false && <ValidationMessage isValid={false} message="Name is required." />}
+                        {isNameValid === true && <ValidationMessage isValid={true} message="Name is valid." />}
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="sku">SKU *</Label>
-                        <Input id="sku" placeholder="e.g., KB-4532" value={sku} onChange={e => setSku(e.target.value)} />
+                        <Input id="sku" placeholder="e.g., KB-4532" value={sku} onChange={e => { setSku(e.target.value); validateField('sku', e.target.value); }} onBlur={e => validateField('sku', e.target.value)}/>
+                        {isSkuValid === false && <ValidationMessage isValid={false} message="SKU is required." />}
+                        {isSkuValid === true && <ValidationMessage isValid={true} message="SKU is valid." />}
                     </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="stock">Stock Quantity *</Label>
-                            <Input id="stock" type="number" placeholder="e.g., 120" value={stock} onChange={e => setStock(e.target.value)} />
+                            <Input id="stock" type="number" placeholder="e.g., 120" value={stock} onChange={e => { setStock(e.target.value); validateField('stock', e.target.value); }} onBlur={e => validateField('stock', e.target.value)} />
+                            {isStockValid === false && <ValidationMessage isValid={false} message="Must be a valid number." />}
+                            {isStockValid === true && <ValidationMessage isValid={true} message="Stock is valid." />}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="price">Price *</Label>
-                            <Input id="price" type="number" placeholder="e.g., 79.99" value={price} onChange={e => setPrice(e.target.value)} />
+                            <Input id="price" type="number" placeholder="e.g., 79.99" value={price} onChange={e => { setPrice(e.target.value); validateField('price', e.target.value); }} onBlur={e => validateField('price', e.target.value)} />
+                            {isPriceValid === false && <ValidationMessage isValid={false} message="Must be a valid price." />}
+                            {isPriceValid === true && <ValidationMessage isValid={true} message="Price is valid." />}
                         </div>
                     </div>
                     <div className="space-y-2">
@@ -182,4 +208,13 @@ function AddProductSheet() {
             </SheetContent>
         </Sheet>
     )
+}
+
+function ValidationMessage({ isValid, message }: { isValid: boolean; message: string }) {
+    return (
+        <div className={cn("flex items-center gap-2 text-sm", isValid ? "text-green-600" : "text-red-600")}>
+            {isValid ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+            <p>{message}</p>
+        </div>
+    );
 }
