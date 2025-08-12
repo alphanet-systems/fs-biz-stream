@@ -3,8 +3,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AppShell } from '@/components/app-shell';
 import { Toaster } from '@/components/ui/toaster';
-import { auth } from '@/auth';
-import { SessionProvider } from 'next-auth/react';
+import { AuthProvider } from '@/components/AuthProvider';
 
 export const metadata: Metadata = {
   title: 'BizStream',
@@ -16,7 +15,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -25,9 +23,9 @@ export default async function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <SessionProvider session={session}>
+        <AuthProvider>
           <AppShell>{children}</AppShell>
-        </SessionProvider>
+        </AuthProvider>
         <Toaster />
       </body>
     </html>
