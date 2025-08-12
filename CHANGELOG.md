@@ -2,6 +2,12 @@
 
 This file tracks the key features and changes implemented in the BizStream application.
 
+## Architectural Planning & Design Phase
+
+- **Product Requirements Definition:** Collaboratively defined the core problem, target audience, and feature set for the application. Established foundational requirements including multi-user RBAC, data import/export, transactional integrity, and a guided setup process.
+- **Technical Architecture Evaluation:** Analyzed three distinct backend architecture scenarios ("Modular Control", "Integrated BaaS", and "Next.js Full Stack"). Evaluated each against criteria of control, open-source principles, ease of development, and deployment flexibility (both cloud and on-premise).
+- **Final Architecture Decision:** Selected the **"Next.js Full Stack"** architecture as the official path forward. This approach, using Next.js for both frontend and backend logic connected to a PostgreSQL database via Prisma, offers the best balance of simplicity, developer experience, and deployment versatility for the project's goals.
+
 ## Initial Project Setup
 
 - Bootstrapped a new Next.js project using TypeScript.

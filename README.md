@@ -14,8 +14,14 @@ This is a Next.js application built in Firebase Studio, designed as an all-in-on
 
 ## Tech Stack
 
+The application is built with a **"Next.js Full Stack"** architecture, prioritizing simplicity, developer experience, and deployment flexibility.
+
 - **Framework**: [Next.js](https://nextjs.org/) (with App Router)
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Backend API**: [Next.js API Routes & Server Actions](https://nextjs.org/docs/app/building-your-application/routing/route-handlers)
+- **Database**: [PostgreSQL](https://www.postgresql.org/) (Production) / [SQLite](https://www.sqlite.org/index.html) (Development)
+- **Data Access**: [Prisma ORM](https://www.prisma.io/)
+- **Authentication**: [NextAuth.js (Auth.js)](https://authjs.dev/)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 - **UI Components**: [ShadCN UI](https://ui.shadcn.com/)
 - **Generative AI**: [Genkit](https://firebase.google.com/docs/genkit)
