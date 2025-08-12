@@ -47,7 +47,7 @@ async function main() {
           data: {
               name: posClientName,
               email: 'pos@example.com',
-              types: ['CLIENT'],
+              types: 'CLIENT',
           }
       });
       console.log(`Created 'Walk-in Customer' with id: ${posClient.id}`);
