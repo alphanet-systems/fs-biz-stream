@@ -39,7 +39,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { useSession, signOut } from "next-auth/react";
+
 
 const menuItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -54,6 +55,7 @@ const menuItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   return (
     <SidebarProvider>
@@ -94,45 +96,51 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="flex items-center justify-between p-4 border-b">
           <SidebarTrigger className="md:hidden"/>
           <div className="flex-1"></div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 flex items-center justify-between gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="https://placehold.co/40x40" alt="User avatar" />
-                  <AvatarFallback>JD</AvatarFallback>
-                </Avatar>
-                <div className="hidden md:flex flex-col items-start">
-                   <span className="text-sm font-medium">Jane Doe</span>
-                   <span className="text-xs text-muted-foreground">Admin</span>
-                </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:block" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Jane Doe</p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    jane.doe@example.com
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <UserCircle className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {session?.user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 flex items-center justify-between gap-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={session.user.image ?? "https://placehold.co/40x40"} alt="User avatar" />
+                    <AvatarFallback>{session.user.name?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="hidden md:flex flex-col items-start">
+                     <span className="text-sm font-medium">{session.user.name}</span>
+                     <span className="text-xs text-muted-foreground">{session.user.role}</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:block" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{session.user.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {session.user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <UserCircle className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => signOut()}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+             <Button variant="outline" asChild>
+              <Link href="/login">Log In</Link>
+            </Button>
+          )}
         </header>
         {children}
       </SidebarInset>
