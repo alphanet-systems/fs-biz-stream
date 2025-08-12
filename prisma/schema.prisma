@@ -1,12 +1,9 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -14,13 +11,15 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+// Core Models
+
 model User {
   id            String    @id @default(cuid())
   name          String?
   email         String?   @unique
-  emailVerified DateTime?
+  emailVerified DateTime? @map("email_verified")
   image         String?
-  password      String?
+  password      String? // Added for credentials auth
   role          String    @default("USER") // Changed from Enum to String
   accounts      Account[]
   sessions      Session[]
@@ -28,10 +27,10 @@ model User {
 
 model Account {
   id                String  @id @default(cuid())
-  userId            String
+  userId            String  @map("user_id")
   type              String
   provider          String
-  providerAccountId String
+  providerAccountId String  @map("provider_account_id")
   refresh_token     String?
   access_token      String?
   expires_at        Int?
@@ -43,130 +42,140 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@map("accounts")
 }
 
 model Session {
   id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
 }
 
 model VerificationToken {
   identifier String
-  token      String   @unique
+  token      String
   expires    DateTime
 
   @@unique([identifier, token])
+  @@map("verification_tokens")
 }
 
+
+// Counterparty: Can be a Client or a Vendor
 model Counterparty {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  email     String    @unique
+  email     String   @unique
   phone     String?
   address   String?
   types     String // Storing as comma-separated string: e.g., "CLIENT,VENDOR"
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  salesOrders SalesOrder[]
-  purchaseOrders PurchaseOrder[]
-  payments Payment[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  salesOrders     SalesOrder[]
+  purchaseOrders  PurchaseOrder[]
+  payments        Payment[]
 }
 
+// Product / Inventory Item
 model Product {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  sku       String    @unique
+  sku       String   @unique
   category  String?
   stock     Int
   price     Float
   imageUrl  String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  salesOrderItems SalesOrderItem[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  salesOrderItems   SalesOrderItem[]
   purchaseOrderItems PurchaseOrderItem[]
 }
 
-model Wallet {
-    id        String    @id @default(cuid())
-    name      String    @unique
-    balance   Float
-    payments  Payment[]
-    createdAt DateTime  @default(now())
-    updatedAt DateTime  @updatedAt
-}
-
-model Payment {
-    id              String      @id @default(cuid())
-    date            DateTime
-    counterpartyId  String
-    counterparty    Counterparty @relation(fields: [counterpartyId], references: [id])
-    walletId        String
-    wallet          Wallet      @relation(fields: [walletId], references: [id])
-    description     String?
-    amount          Float
-    type            String // e.g., 'Cash', 'Bank Transfer'
-    status          String // e.g., 'Received', 'Sent'
-    createdAt       DateTime    @default(now())
-    updatedAt       DateTime    @updatedAt
-}
-
+// Sales Order
 model SalesOrder {
-  id             String           @id @default(cuid())
-  orderNumber    String           @unique
-  counterpartyId String
-  counterparty   Counterparty     @relation(fields: [counterpartyId], references: [id])
-  orderDate      DateTime
-  status         String // e.g., 'Pending', 'Fulfilled', 'Cancelled'
-  subtotal       Float
-  tax            Float
-  total          Float
-  items          SalesOrderItem[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  counterpartyId  String
+  orderDate       DateTime
+  status          String // e.g., Pending, Fulfilled, Cancelled
+  subtotal        Float
+  tax             Float
+  total           Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  counterparty Counterparty     @relation(fields: [counterpartyId], references: [id])
+  items        SalesOrderItem[]
 }
 
 model SalesOrderItem {
-  id           String     @id @default(cuid())
+  id          String  @id @default(cuid())
   salesOrderId String
-  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id])
-  productId    String
-  product      Product    @relation(fields: [productId], references: [id])
-  quantity     Int
-  unitPrice    Float
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  productId   String
+  quantity    Int
+  unitPrice   Float
 
-  @@unique([salesOrderId, productId])
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id])
 }
 
+// Purchase Order
 model PurchaseOrder {
-  id             String              @id @default(cuid())
-  orderNumber    String              @unique
-  counterpartyId String
-  counterparty   Counterparty        @relation(fields: [counterpartyId], references: [id])
-  orderDate      DateTime
-  status         String // e.g., 'Pending', 'Received', 'Cancelled'
-  subtotal       Float
-  tax            Float
-  total          Float
-  items          PurchaseOrderItem[]
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  counterpartyId  String
+  orderDate       DateTime
+  status          String   // e.g., Pending, Received, Cancelled
+  subtotal        Float
+  tax             Float
+  total           Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  counterparty      Counterparty        @relation(fields: [counterpartyId], references: [id])
+  items             PurchaseOrderItem[]
 }
 
 model PurchaseOrderItem {
-  id              String        @id @default(cuid())
+  id              String  @id @default(cuid())
   purchaseOrderId String
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
   productId       String
-  product         Product       @relation(fields: [productId], references: [id])
   quantity        Int
   unitPrice       Float
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
 
-  @@unique([purchaseOrderId, productId])
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+}
+
+// Payment & Wallet System
+model Wallet {
+    id        String @id @default(cuid())
+    name      String
+    balance   Float
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    payments Payment[]
+}
+
+model Payment {
+    id              String @id @default(cuid())
+    date            DateTime
+    counterpartyId  String
+    walletId        String
+    description     String
+    amount          Float // Positive for income, negative for expenses
+    type            String // e.g., Bank Transfer, Cash, Credit Card
+    status          String // e.g., Received, Sent, Pending
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    counterparty Counterparty @relation(fields: [counterpartyId], references: [id])
+    wallet       Wallet       @relation(fields: [walletId], references: [id])
 }
