@@ -5,9 +5,8 @@ import prisma from './lib/prisma';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { type User } from '@prisma/client';
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  secret: process.env.AUTH_SECRET,
   session: {
     strategy: 'jwt',
   },
@@ -19,42 +18,34 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        console.log('[Auth] Authorize function started.');
         if (!credentials?.email || !credentials.password) {
-          console.error('[Auth] Missing email or password.');
           throw new CredentialsSignin('Missing email or password.');
         }
 
         const email = credentials.email as string;
         const password = credentials.password as string;
-        console.log(`[Auth] Attempting to log in with email: ${email}`);
 
-        try {
-          const user = await prisma.user.findUnique({
-            where: { email },
-          });
+        const user = await prisma.user.findUnique({
+          where: { email },
+        });
 
-          if (!user) {
-            console.error(`[Auth] No user found for email: ${email}`);
-            return null; // Triggers login failure
-          }
-          console.log(`[Auth] Found user: ${user.name}`);
-
-          // In a real app, always hash and compare passwords!
-          if (user.password !== password) {
-            console.error(`[Auth] Invalid password for user: ${email}`);
-            return null; // Triggers login failure
-          }
-
-          console.log(`[Auth] Password verified for user: ${email}. Login successful.`);
-          // The user object will be encoded in the JWT.
-          return user;
-        } catch (error) {
-            console.error('[Auth] A database error occurred:', error);
-            // Throwing the error will prevent login and log the issue.
-            throw new Error('Database error during authorization.');
+        if (!user) {
+          // In a real app, you'd want to avoid logging this for security reasons,
+          // but it's helpful for debugging.
+          console.error(`[Auth] No user found for email: ${email}`);
+          return null; // Triggers login failure
         }
+        
+        // In a real app, always hash and compare passwords!
+        const passwordsMatch = user.password === password;
 
+        if (passwordsMatch) {
+          // Return the user object to be encoded in the JWT
+          return user;
+        }
+        
+        console.error(`[Auth] Invalid password for user: ${email}`);
+        return null; // Triggers login failure
       },
     }),
   ],
@@ -78,5 +69,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   pages: {
     signIn: '/login',
+    error: '/login', // Redirect auth errors back to the login page
   },
+  debug: process.env.NODE_ENV === "development",
 });

@@ -18,7 +18,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
-import { CredentialsSignin } from 'next-auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -30,33 +29,32 @@ export default function LoginPage() {
   const handleLogin = async () => {
     setIsLoading(true);
     try {
-      // Let NextAuth handle the redirection on success.
-      // It will redirect to the callbackUrl.
-      // If there is an error, it will throw, and the catch block will handle it.
-      await signIn('credentials', {
+      const result = await signIn('credentials', {
         email,
         password,
-        callbackUrl: '/',
+        redirect: false, // Handle redirect manually
       });
 
-    } catch (error) {
-       // This block now correctly handles errors thrown by signIn
-       if (error instanceof CredentialsSignin) {
-          toast({
+      if (result?.error) {
+         toast({
             title: 'Login Failed',
             description: 'Invalid email or password. Please try again.',
             variant: 'destructive',
           });
-       } else {
-         toast({
-            title: 'An Unexpected Error Occurred',
-            description: 'Please try again later.',
-            variant: 'destructive',
-          });
-       }
+      } else if (result?.ok) {
+        toast({
+          title: 'Login Successful',
+          description: 'Redirecting to your dashboard...',
+        });
+        router.push('/');
+      }
+    } catch (error) {
+       toast({
+          title: 'An Unexpected Error Occurred',
+          description: 'Please try again later.',
+          variant: 'destructive',
+        });
     } finally {
-        // Set loading to false only in the error case, 
-        // as the page will redirect on success.
         setIsLoading(false);
     }
   };
