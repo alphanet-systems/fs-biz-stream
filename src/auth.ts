@@ -1,3 +1,4 @@
+
 import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import Credentials from 'next-auth/providers/credentials';
@@ -6,6 +7,7 @@ import type { User } from '@prisma/client';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  secret: process.env.AUTH_SECRET,
   providers: [
     Credentials({
       name: 'Credentials',
