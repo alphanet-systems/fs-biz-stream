@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import { type Client, type Product, type Payment, type SalesOrder, type SalesOrderItem } from '@prisma/client';
+import { type Counterparty, type Product, type Payment, type SalesOrder, type PurchaseOrder } from '@prisma/client';
 
 type ServerActionResult<T> = {
   success: boolean;
@@ -11,32 +11,37 @@ type ServerActionResult<T> = {
   error?: string;
 };
 
-// Client Actions
-export async function getClients(): Promise<Client[]> {
+// Counterparty Actions
+export async function getCounterparties(type?: 'CLIENT' | 'VENDOR'): Promise<Counterparty[]> {
   try {
-    return await prisma.client.findMany({
+    return await prisma.counterparty.findMany({
+      where: type ? {
+        types: {
+          has: type,
+        }
+      } : {},
       orderBy: {
         createdAt: 'desc',
       },
     });
   } catch (error) {
-    console.error('Error fetching clients:', error);
+    console.error('Error fetching counterparties:', error);
     return [];
   }
 }
 
-export async function createClient(data: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>): Promise<ServerActionResult<Client>> {
+export async function createCounterparty(data: Omit<Counterparty, 'id' | 'createdAt' | 'updatedAt'>): Promise<ServerActionResult<Counterparty>> {
   try {
-    const newClient = await prisma.client.create({
+    const newCounterparty = await prisma.counterparty.create({
       data: {
         ...data,
       },
     });
     revalidatePath('/clients');
-    return { success: true, data: newClient };
+    return { success: true, data: newCounterparty };
   } catch (error) {
-    console.error('Error creating client:', error);
-    return { success: false, error: 'Failed to create client.' };
+    console.error('Error creating counterparty:', error);
+    return { success: false, error: 'Failed to create counterparty.' };
   }
 }
 
@@ -68,11 +73,11 @@ export async function createProduct(data: Omit<Product, 'id' | 'createdAt' | 'up
 }
 
 // Payment Actions
-export async function getPayments(): Promise<(Payment & { client: Client })[]> {
+export async function getPayments(): Promise<(Payment & { counterparty: Counterparty })[]> {
   try {
     return await prisma.payment.findMany({
       include: {
-        client: true,
+        counterparty: true,
       },
       orderBy: {
         date: 'desc',
@@ -90,7 +95,7 @@ export async function createPayment(data: {
     type: string;
     status: string;
     description: string;
-    clientId: string;
+    counterpartyId: string;
 }): Promise<ServerActionResult<Payment>> {
     try {
         const newPayment = await prisma.payment.create({
@@ -108,11 +113,11 @@ export async function createPayment(data: {
 }
 
 // Sales Order Actions
-export async function getSalesOrders(): Promise<(SalesOrder & { client: Client })[]> {
+export async function getSalesOrders(): Promise<(SalesOrder & { counterparty: Counterparty })[]> {
     try {
         return await prisma.salesOrder.findMany({
             include: {
-                client: true,
+                counterparty: true,
             },
             orderBy: {
                 orderDate: 'desc',
@@ -125,7 +130,7 @@ export async function getSalesOrders(): Promise<(SalesOrder & { client: Client }
 }
 
 type SalesOrderInput = {
-    clientId: string;
+    counterpartyId: string;
     orderDate: Date;
     items: {
         productId: string;
@@ -146,7 +151,7 @@ export async function createSalesOrder(input: SalesOrderInput): Promise<ServerAc
             // 2. Create the SalesOrder
             const order = await tx.salesOrder.create({
                 data: {
-                    clientId: input.clientId,
+                    counterpartyId: input.counterpartyId,
                     orderDate: input.orderDate,
                     orderNumber: `SO-${Date.now().toString().slice(-6)}`,
                     status: 'Pending',
@@ -184,5 +189,73 @@ export async function createSalesOrder(input: SalesOrderInput): Promise<ServerAc
     } catch (error) {
         console.error('Error creating sales order:', error);
         return { success: false, error: 'Failed to create sales order.' };
+    }
+}
+
+
+// Purchase Order Actions
+export async function getPurchaseOrders(): Promise<(PurchaseOrder & { counterparty: Counterparty })[]> {
+    try {
+        return await prisma.purchaseOrder.findMany({
+            include: {
+                counterparty: true,
+            },
+            orderBy: {
+                orderDate: 'desc',
+            },
+        });
+    } catch (error) {
+        console.error('Error fetching purchase orders:', error);
+        return [];
+    }
+}
+
+type PurchaseOrderInput = {
+    counterpartyId: string;
+    orderDate: Date;
+    items: {
+        productId: string;
+        quantity: number;
+        unitPrice: number;
+    }[];
+};
+
+export async function createPurchaseOrder(input: PurchaseOrderInput): Promise<ServerActionResult<PurchaseOrder>> {
+     try {
+        const newPurchaseOrder = await prisma.$transaction(async (tx) => {
+            const subtotal = input.items.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
+            const tax = subtotal * 0.10; // 10% tax
+            const total = subtotal + tax;
+
+            const order = await tx.purchaseOrder.create({
+                data: {
+                    counterpartyId: input.counterpartyId,
+                    orderDate: input.orderDate,
+                    orderNumber: `PO-${Date.now().toString().slice(-6)}`,
+                    status: 'Pending',
+                    subtotal,
+                    tax,
+                    total,
+                    items: {
+                        create: input.items.map(item => ({
+                            productId: item.productId,
+                            quantity: item.quantity,
+                            unitPrice: item.unitPrice,
+                        })),
+                    },
+                },
+            });
+
+            // For now, we assume stock is increased on fulfillment, not on order creation.
+            // A separate action `fulfillPurchaseOrder` would handle this.
+
+            return order;
+        });
+
+        revalidatePath('/purchases');
+        return { success: true, data: newPurchaseOrder };
+    } catch (error) {
+        console.error('Error creating purchase order:', error);
+        return { success: false, error: 'Failed to create purchase order.' };
     }
 }

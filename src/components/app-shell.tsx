@@ -44,7 +44,7 @@ import { cn } from "@/lib/utils";
 const menuItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/calendar", label: "Calendar", icon: Calendar },
-  { href: "/clients", label: "Clients", icon: Users },
+  { href: "/clients", label: "Counterparties", icon: Users },
   { href: "/sales", label: "Sales", icon: FileText },
   { href: "/purchases", label: "Purchases", icon: Truck },
   { href: "/payments", label: "Payments", icon: Banknote },

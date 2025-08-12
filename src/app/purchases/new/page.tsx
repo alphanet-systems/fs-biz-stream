@@ -12,11 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { PlusCircle, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { type Product, type Counterparty } from '@prisma/client';
-import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { getCounterparties, getProducts, createSalesOrder } from '@/lib/actions';
+import { getCounterparties, getProducts, createPurchaseOrder } from '@/lib/actions';
 
 type LineItem = {
     id: string;
@@ -24,27 +23,26 @@ type LineItem = {
     description: string;
     quantity: number;
     unitPrice: number;
-    stock: number;
 };
 
 
-export default function NewSalePage() {
+export default function NewPurchasePage() {
     const [lineItems, setLineItems] = useState<LineItem[]>([]);
-    const [clients, setClients] = useState<Counterparty[]>([]);
+    const [vendors, setVendors] = useState<Counterparty[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
-    const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | undefined>();
+    const [selectedVendorId, setSelectedVendorId] = useState<string | undefined>();
     const [orderDate, setOrderDate] = useState(new Date().toISOString().substring(0, 10));
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
     const { toast } = useToast();
 
     useEffect(() => {
-        getCounterparties('CLIENT').then(setClients);
+        getCounterparties('VENDOR').then(setVendors);
         getProducts().then(setProducts);
     }, []);
 
     const handleAddLineItem = () => {
-        setLineItems([...lineItems, { id: Date.now().toString(), productId: '', description: '', quantity: 1, unitPrice: 0, stock: 0 }]);
+        setLineItems([...lineItems, { id: Date.now().toString(), productId: '', description: '', quantity: 1, unitPrice: 0 }]);
     };
     
     const handleRemoveLineItem = (id: string) => {
@@ -60,8 +58,7 @@ export default function NewSalePage() {
             ...item,
             productId: product.id,
             description: product.name,
-            unitPrice: product.price,
-            stock: product.stock,
+            unitPrice: product.price, // Should this be a different cost price? For now, using sale price.
             quantity: 1,
         } : item));
     };
@@ -71,11 +68,11 @@ export default function NewSalePage() {
     const total = subtotal + tax;
 
     const handleCreateOrder = () => {
-        if (!selectedCounterpartyId || lineItems.length === 0) return;
+        if (!selectedVendorId || lineItems.length === 0) return;
 
         startTransition(async () => {
             const orderInput = {
-                counterpartyId: selectedCounterpartyId,
+                counterpartyId: selectedVendorId,
                 orderDate: new Date(orderDate),
                 items: lineItems.map(item => ({
                     productId: item.productId,
@@ -84,18 +81,18 @@ export default function NewSalePage() {
                 })),
             };
 
-            const result = await createSalesOrder(orderInput);
+            const result = await createPurchaseOrder(orderInput);
 
             if (result.success && result.data) {
                 toast({
-                    title: "Sales Order Created",
+                    title: "Purchase Order Created",
                     description: `Order ${result.data.orderNumber} has been successfully created.`,
                 });
-                router.push('/sales');
+                router.push('/purchases');
             } else {
                 toast({
                     title: "Error",
-                    description: result.error || "Could not create the sales order.",
+                    description: result.error || "Could not create the purchase order.",
                     variant: "destructive",
                 });
             }
@@ -106,9 +103,9 @@ export default function NewSalePage() {
         <div className="flex-1 p-4 md:p-8 pt-6">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Create New Sale</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Create New Purchase</h1>
                     <p className="text-muted-foreground">
-                        Fill out the form below to create a new sales order.
+                        Fill out the form below to create a new purchase order.
                     </p>
                 </div>
             </div>
@@ -117,14 +114,14 @@ export default function NewSalePage() {
                 <CardHeader>
                     <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                            <Label htmlFor="client">Client</Label>
-                            <Select onValueChange={setSelectedCounterpartyId} value={selectedCounterpartyId}>
+                            <Label htmlFor="vendor">Vendor</Label>
+                            <Select onValueChange={setSelectedVendorId} value={selectedVendorId}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select a client" />
+                                    <SelectValue placeholder="Select a vendor" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {clients.map(client => (
-                                        <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                                    {vendors.map(vendor => (
+                                        <SelectItem key={vendor.id} value={vendor.id}>{vendor.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -155,9 +152,6 @@ export default function NewSalePage() {
                                             onSelect={(product) => handleProductSelect(item.id, product)}
                                             selectedProductId={item.productId}
                                         />
-                                        {item.productId && item.quantity > item.stock && (
-                                            <p className='text-xs text-red-500 mt-1'>Warning: Quantity exceeds available stock ({item.stock})</p>
-                                        )}
                                     </TableCell>
                                     <TableCell>
                                         <Input 
@@ -165,7 +159,6 @@ export default function NewSalePage() {
                                             value={item.quantity}
                                             onChange={e => handleLineItemChange(item.id, 'quantity', parseInt(e.target.value) || 0)}
                                             min="1"
-                                            className={item.quantity > item.stock ? 'border-red-500' : ''}
                                             disabled={!item.productId}
                                         />
                                     </TableCell>
@@ -216,18 +209,11 @@ export default function NewSalePage() {
                         </div>
                     </div>
                 </CardContent>
-                <CardFooter className="flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="generate-invoice" />
-                        <Label htmlFor="generate-invoice">Generate Invoice</Label>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-                        <Button variant="outline" disabled={!selectedCounterpartyId || isPending}>Save as Draft</Button>
-                        <Button disabled={!selectedCounterpartyId || lineItems.length === 0 || isPending} onClick={handleCreateOrder}>
-                            {isPending ? "Creating..." : "Create Sales Order"}
-                        </Button>
-                    </div>
+                <CardFooter className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
+                    <Button disabled={!selectedVendorId || lineItems.length === 0 || isPending} onClick={handleCreateOrder}>
+                        {isPending ? "Creating..." : "Create Purchase Order"}
+                    </Button>
                 </CardFooter>
             </Card>
         </div>

@@ -1,14 +1,13 @@
 
+import { type Payment as PrismaPayment, type Counterparty as PrismaCounterparty, type Product as PrismaProduct, type SalesOrder as PrismaSalesOrder } from "@prisma/client";
 
-import { type Payment as PrismaPayment, type Client as PrismaClient, type Product as PrismaProduct, type SalesOrder as PrismaSalesOrder } from "@prisma/client";
-
-export type Client = PrismaClient;
+export type Counterparty = PrismaCounterparty;
 export type Product = PrismaProduct;
 export type SalesOrder = PrismaSalesOrder;
 
 
-export type Payment = Omit<PrismaPayment, 'clientId' | 'date'> & {
-  client: Client;
+export type Payment = Omit<PrismaPayment, 'counterpartyId' | 'date'> & {
+  counterparty: Counterparty;
   date: string;
 };
 
@@ -17,7 +16,7 @@ export type CalendarEvent = {
   date: Date;
   title: string;
   description?: string;
-  client?: Client;
+  counterparty?: Counterparty;
 };
 
 export type ChartData = {

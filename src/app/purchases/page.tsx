@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { PlusCircle, Search, File, FileText } from "lucide-react";
+import { PlusCircle, Search, File, FileText, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,17 +23,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { type SalesOrder, type Counterparty } from "@prisma/client";
-import { getSalesOrders } from "@/lib/actions";
+import { type PurchaseOrder, type Counterparty } from "@prisma/client";
+import { getPurchaseOrders } from "@/lib/actions";
 
-type SalesOrderWithCounterparty = SalesOrder & { counterparty: Counterparty };
+type PurchaseOrderWithCounterparty = PurchaseOrder & { counterparty: Counterparty };
 
-const getStatusVariant = (status: SalesOrder['status']) => {
+const getStatusVariant = (status: PurchaseOrder['status']) => {
   switch (status) {
-    case "Fulfilled":
+    case "Received":
       return "bg-green-500/20 text-green-700 hover:bg-green-500/30";
     case "Pending":
       return "bg-yellow-500/20 text-yellow-700 hover:bg-yellow-500/30";
@@ -44,20 +43,20 @@ const getStatusVariant = (status: SalesOrder['status']) => {
   }
 };
 
-export default function SalesPage() {
-  const [salesOrders, setSalesOrders] = useState<SalesOrderWithCounterparty[]>([]);
+export default function PurchasesPage() {
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrderWithCounterparty[]>([]);
 
   useEffect(() => {
-    getSalesOrders().then(setSalesOrders);
+    getPurchaseOrders().then(setPurchaseOrders);
   }, []);
 
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Sales</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Purchases</h1>
           <p className="text-muted-foreground">
-            Manage your sales orders and generate invoices.
+            Manage your purchase orders from vendors.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -65,10 +64,10 @@ export default function SalesPage() {
                 <File className="h-4 w-4 mr-2" />
                 Export
             </Button>
-            <Link href="/sales/new" passHref>
+            <Link href="/purchases/new" passHref>
                 <Button>
                     <PlusCircle className="h-4 w-4 mr-2" />
-                    Create Sale
+                    Create Purchase
                 </Button>
             </Link>
         </div>
@@ -78,7 +77,7 @@ export default function SalesPage() {
         <div className="flex items-center">
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="fulfilled">Fulfilled</TabsTrigger>
+            <TabsTrigger value="received">Received</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
             <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
           </TabsList>
@@ -95,7 +94,7 @@ export default function SalesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Order #</TableHead>
-                  <TableHead>Client</TableHead>
+                  <TableHead>Vendor</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Total</TableHead>
@@ -105,7 +104,7 @@ export default function SalesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {salesOrders.map((order) => (
+                {purchaseOrders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-medium">{order.orderNumber}</TableCell>
                     <TableCell>{order.counterparty.name}</TableCell>
@@ -127,9 +126,7 @@ export default function SalesPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem>View Details</DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <FileText className="mr-2 h-4 w-4"/> Generate Invoice
-                          </DropdownMenuItem>
+                          <DropdownMenuItem>Mark as Received</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-red-600">Cancel Order</DropdownMenuItem>
                         </DropdownMenuContent>

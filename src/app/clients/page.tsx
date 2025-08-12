@@ -27,24 +27,26 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { type Client } from "@prisma/client";
-import { createClient, getClients } from "@/lib/actions";
+import { type Counterparty, type CounterpartyType } from "@prisma/client";
+import { createCounterparty, getCounterparties } from "@/lib/actions";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
-export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
+export default function CounterpartiesPage() {
+  const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   React.useEffect(() => {
-    getClients().then(setClients);
+    getCounterparties().then(setCounterparties);
   }, []);
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCounterparties = counterparties.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  const onClientCreated = (newClient: Client) => {
-    setClients(prev => [newClient, ...prev]);
+  const onCounterpartyCreated = (newCounterparty: Counterparty) => {
+    setCounterparties(prev => [newCounterparty, ...prev]);
   };
 
   return (
@@ -53,25 +55,25 @@ export default function ClientsPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Clients</CardTitle>
-              <CardDescription>Manage your clients and view their details.</CardDescription>
+              <CardTitle>Counterparties</CardTitle>
+              <CardDescription>Manage your clients and vendors.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm">
                 <File className="h-4 w-4 mr-2" />
                 Export
               </Button>
-              <AddClientSheet onClientCreated={onClientCreated} />
+              <AddCounterpartySheet onCounterpartyCreated={onCounterpartyCreated} />
             </div>
           </div>
           <div className="relative mt-4">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input 
-              placeholder="Search clients..." 
+              placeholder="Search by name or email..." 
               className="pl-8" 
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              aria-label="Search clients"
+              aria-label="Search counterparties"
             />
           </div>
         </CardHeader>
@@ -80,8 +82,8 @@ export default function ClientsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead className="hidden md:table-cell">Phone</TableHead>
-                <TableHead className="hidden md:table-cell">Address</TableHead>
                 <TableHead className="hidden sm:table-cell">Created At</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
@@ -89,15 +91,21 @@ export default function ClientsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredClients.map((client) => (
-                <TableRow key={client.id}>
+              {filteredCounterparties.map((counterparty) => (
+                <TableRow key={counterparty.id}>
                   <TableCell>
-                    <div className="font-medium">{client.name}</div>
-                    <div className="text-sm text-muted-foreground">{client.email}</div>
+                    <div className="font-medium">{counterparty.name}</div>
+                    <div className="text-sm text-muted-foreground">{counterparty.email}</div>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">{client.phone}</TableCell>
-                  <TableCell className="hidden md:table-cell">{client.address}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{new Date(client.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {counterparty.types.map(type => (
+                        <Badge key={type} variant={type === 'CLIENT' ? 'default' : 'secondary'}>{type}</Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">{counterparty.phone}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{new Date(counterparty.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -109,7 +117,7 @@ export default function ClientsPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem>View Invoices</DropdownMenuItem>
+                        <DropdownMenuItem>View History</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
                       </DropdownMenuContent>
@@ -125,51 +133,50 @@ export default function ClientsPage() {
   );
 }
 
-function AddClientSheet({ onClientCreated }: { onClientCreated: (client: Client) => void }) {
+function AddCounterpartySheet({ onCounterpartyCreated }: { onCounterpartyCreated: (c: Counterparty) => void }) {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
+    const [types, setTypes] = useState<CounterpartyType[]>(['CLIENT']);
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
-
-    const [isNameValid, setIsNameValid] = useState<boolean | null>(null);
-    const [isEmailValid, setIsEmailValid] = useState<boolean | null>(null);
     
     const { toast } = useToast();
 
     const isFormValid = useMemo(() => {
-        return isNameValid === true && isEmailValid === true;
-    }, [isNameValid, isEmailValid]);
-
-    const validateName = (currentName: string) => {
-        setIsNameValid(currentName.trim() !== '');
-    };
-
-    const validateEmail = (currentEmail: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        setIsEmailValid(emailRegex.test(currentEmail));
-    };
-    
+        return name.trim() !== '' && emailRegex.test(email) && types.length > 0;
+    }, [name, email, types]);
+
     const resetForm = () => {
         setName('');
         setEmail('');
         setPhone('');
         setAddress('');
-        setIsNameValid(null);
-        setIsEmailValid(null);
+        setTypes(['CLIENT']);
+    };
+    
+    const handleTypeChange = (type: CounterpartyType, checked: boolean) => {
+        setTypes(prev => {
+            if (checked) {
+                return [...prev, type];
+            } else {
+                return prev.filter(t => t !== type);
+            }
+        });
     };
 
-    const handleSaveClient = () => {
+    const handleSave = () => {
         if (!isFormValid) return;
 
         startTransition(async () => {
-          const result = await createClient({ name, email, phone, address });
+          const result = await createCounterparty({ name, email, phone, address, types });
           
           if (result.success && result.data) {
-            onClientCreated(result.data);
+            onCounterpartyCreated(result.data);
             toast({
-                title: "Client Saved",
+                title: "Counterparty Saved",
                 description: `${result.data.name} has been successfully added.`,
             });
             resetForm();
@@ -177,7 +184,7 @@ function AddClientSheet({ onClientCreated }: { onClientCreated: (client: Client)
           } else {
              toast({
                 title: "Error",
-                description: result.error || "Could not save the client.",
+                description: result.error || "Could not save the counterparty.",
                 variant: "destructive",
             });
           }
@@ -189,48 +196,39 @@ function AddClientSheet({ onClientCreated }: { onClientCreated: (client: Client)
             <SheetTrigger asChild>
               <Button onClick={() => setOpen(true)}>
                 <PlusCircle className="h-4 w-4 mr-2" />
-                Add Client
+                Add New
               </Button>
             </SheetTrigger>
             <SheetContent className="sm:max-w-lg">
                 <SheetHeader>
-                    <SheetTitle>Add New Client</SheetTitle>
+                    <SheetTitle>Add New Counterparty</SheetTitle>
                     <SheetDescription>
-                        Fill in the details below to add a new client to your system.
+                        A counterparty can be a client, a vendor, or both.
                     </SheetDescription>
                 </SheetHeader>
                 <Separator className="my-4"/>
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Full Name *</Label>
-                        <Input 
-                          id="name" 
-                          placeholder="e.g., John Doe" 
-                          value={name} 
-                          onChange={e => {
-                            setName(e.target.value);
-                            validateName(e.target.value);
-                          }}
-                          onBlur={() => validateName(name)}
-                        />
-                         {isNameValid === false && <ValidationMessage isValid={false} message="Name is required." />}
-                         {isNameValid === true && <ValidationMessage isValid={true} message="Name is valid." />}
+                        <Label>Counterparty Type *</Label>
+                        <div className="flex gap-4 items-center pt-2">
+                           <div className="flex items-center space-x-2">
+                                <Checkbox id="type-client" checked={types.includes('CLIENT')} onCheckedChange={(checked) => handleTypeChange('CLIENT', !!checked)} />
+                                <Label htmlFor="type-client">Client</Label>
+                           </div>
+                           <div className="flex items-center space-x-2">
+                                <Checkbox id="type-vendor" checked={types.includes('VENDOR')} onCheckedChange={(checked) => handleTypeChange('VENDOR', !!checked)} />
+                                <Label htmlFor="type-vendor">Vendor</Label>
+                           </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="name">Full Name / Company Name *</Label>
+                        <Input id="name" placeholder="e.g., Innovate Inc." value={name} onChange={e => setName(e.target.value)} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="email">Email Address *</Label>
-                        <Input 
-                          id="email" 
-                          type="email" 
-                          placeholder="e.g., john.doe@example.com" 
-                          value={email} 
-                          onChange={e => {
-                            setEmail(e.target.value);
-                            validateEmail(e.target.value);
-                          }}
-                          onBlur={() => validateEmail(email)}
-                        />
-                        {isEmailValid === false && <ValidationMessage isValid={false} message="Please enter a valid email." />}
-                        {isEmailValid === true && <ValidationMessage isValid={true} message="Email is valid." />}
+                        <Input id="email" type="email" placeholder="e.g., contact@innovate.com" value={email} onChange={e => setEmail(e.target.value)} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="phone">Phone Number</Label>
@@ -243,20 +241,11 @@ function AddClientSheet({ onClientCreated }: { onClientCreated: (client: Client)
                 </div>
                 <div className="mt-6 flex justify-end gap-2">
                     <Button variant="outline" onClick={() => { setOpen(false); resetForm(); }}>Cancel</Button>
-                    <Button onClick={handleSaveClient} disabled={!isFormValid || isPending}>
-                      {isPending ? "Saving..." : "Save Client"}
+                    <Button onClick={handleSave} disabled={!isFormValid || isPending}>
+                      {isPending ? "Saving..." : "Save"}
                     </Button>
                 </div>
             </SheetContent>
         </Sheet>
     )
-}
-
-function ValidationMessage({ isValid, message }: { isValid: boolean; message: string }) {
-    return (
-        <div className={cn("flex items-center gap-2 text-sm", isValid ? "text-green-600" : "text-red-600")}>
-            {isValid ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-            <p>{message}</p>
-        </div>
-    );
 }

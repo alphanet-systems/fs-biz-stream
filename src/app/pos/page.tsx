@@ -174,15 +174,16 @@ function CheckoutDialog({ total, cart, onSuccessfulCheckout }: { total: number; 
     const [open, setOpen] = useState(false);
 
     // This is a placeholder. In a real app, you'd have a way to select or create a 'POS Customer'.
-    const POS_CLIENT_ID = "1"; 
+    // We assume a 'Walk-in Customer' with ID "1" exists.
+    const POS_COUNTERPARTY_ID = "1"; 
 
     const handleConfirmPayment = () => {
         if (cart.length === 0) return;
 
         startTransition(async () => {
             const orderInput = {
-                // Using a default client ID for POS sales.
-                clientId: POS_CLIENT_ID, 
+                // Using a default counterparty ID for POS sales.
+                counterpartyId: POS_COUNTERPARTY_ID, 
                 orderDate: new Date(),
                 items: cart.map(item => ({
                     productId: item.id,
@@ -251,5 +252,3 @@ function CheckoutDialog({ total, cart, onSuccessfulCheckout }: { total: number; 
         </Dialog>
     )
 }
-
-    

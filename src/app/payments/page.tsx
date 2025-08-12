@@ -21,8 +21,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/hooks/use-toast";
-import { type Payment, type Client } from "@prisma/client";
-import { createPayment, getPayments, getClients } from "@/lib/actions";
+import { type Payment, type Counterparty } from "@prisma/client";
+import { createPayment, getPayments, getCounterparties } from "@/lib/actions";
 
 const getStatusVariant = (status: "Received" | "Sent") => {
   return status === "Received" 
@@ -30,22 +30,22 @@ const getStatusVariant = (status: "Received" | "Sent") => {
     : "bg-red-500/20 text-red-700 hover:bg-red-500/30";
 };
 
-type PaymentWithClient = Payment & { client: Client };
+type PaymentWithCounterparty = Payment & { counterparty: Counterparty };
 
 export default function PaymentsPage() {
-  const [paymentList, setPaymentList] = useState<PaymentWithClient[]>([]);
+  const [paymentList, setPaymentList] = useState<PaymentWithCounterparty[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   React.useEffect(() => {
     getPayments().then(setPaymentList);
   }, []);
   
-  const onPaymentAdded = (newPayment: PaymentWithClient) => {
+  const onPaymentAdded = (newPayment: PaymentWithCounterparty) => {
     setPaymentList(prevList => [newPayment, ...prevList]);
   };
   
   const filteredPayments = paymentList.filter(payment =>
-    payment.client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.counterparty.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (payment.description && payment.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
@@ -88,7 +88,7 @@ export default function PaymentsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Client/Vendor</TableHead>
+                  <TableHead>Counterparty</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
@@ -99,7 +99,7 @@ export default function PaymentsPage() {
                 {filteredPayments.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
-                    <TableCell className="font-medium">{payment.client.name}</TableCell>
+                    <TableCell className="font-medium">{payment.counterparty.name}</TableCell>
                     <TableCell>{payment.description}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{payment.type}</Badge>
@@ -123,32 +123,32 @@ export default function PaymentsPage() {
   );
 }
 
-function AddPaymentSheet({ type, onPaymentAdded }: { type: 'Received' | 'Sent', onPaymentAdded: (payment: PaymentWithClient) => void }) {
+function AddPaymentSheet({ type, onPaymentAdded }: { type: 'Received' | 'Sent', onPaymentAdded: (payment: PaymentWithCounterparty) => void }) {
     const [open, setOpen] = useState(false);
     const [amount, setAmount] = useState('');
-    const [selectedClientId, setSelectedClientId] = useState<string | undefined>();
+    const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | undefined>();
     const [description, setDescription] = useState('');
     const [paymentType, setPaymentType] = useState<'Cash' | 'Bank Transfer'>('Bank Transfer');
-    const [clients, setClients] = useState<Client[]>([]);
+    const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
     React.useEffect(() => {
         if (open) {
-            getClients().then(setClients);
+            getCounterparties().then(setCounterparties);
         }
     }, [open]);
 
     const isFormValid = useMemo(() => {
-        return amount && Number(amount) > 0 && selectedClientId && description.trim() !== '';
-    }, [amount, selectedClientId, description]);
+        return amount && Number(amount) > 0 && selectedCounterpartyId && description.trim() !== '';
+    }, [amount, selectedCounterpartyId, description]);
 
     const title = type === 'Received' ? 'Add Income' : 'Add Expense';
-    const clientLabel = type === 'Received' ? 'Client' : 'Vendor';
+    const counterpartyLabel = type === 'Received' ? 'From Client' : 'To Vendor';
 
     const resetForm = () => {
         setAmount('');
-        setSelectedClientId(undefined);
+        setSelectedCounterpartyId(undefined);
         setDescription('');
         setPaymentType('Bank Transfer');
     };
@@ -162,12 +162,12 @@ function AddPaymentSheet({ type, onPaymentAdded }: { type: 'Received' | 'Sent', 
                 type: paymentType,
                 status: type,
                 description,
-                clientId: selectedClientId!,
+                counterpartyId: selectedCounterpartyId!,
             });
 
             if (result.success && result.data) {
-                const client = clients.find(c => c.id === result.data!.clientId)!;
-                onPaymentAdded({ ...result.data, client });
+                const counterparty = counterparties.find(c => c.id === result.data!.counterpartyId)!;
+                onPaymentAdded({ ...result.data, counterparty });
 
                 toast({
                     title: `Payment ${type}`,
@@ -221,14 +221,14 @@ function AddPaymentSheet({ type, onPaymentAdded }: { type: 'Received' | 'Sent', 
                        </div>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="client">{clientLabel} *</Label>
-                        <Select onValueChange={setSelectedClientId} value={selectedClientId}>
-                            <SelectTrigger id="client">
-                                <SelectValue placeholder={`Select a ${clientLabel.toLowerCase()}`} />
+                        <Label htmlFor="counterparty">{counterpartyLabel} *</Label>
+                        <Select onValueChange={setSelectedCounterpartyId} value={selectedCounterpartyId}>
+                            <SelectTrigger id="counterparty">
+                                <SelectValue placeholder={`Select a counterparty`} />
                             </SelectTrigger>
                             <SelectContent>
-                                {clients.map(client => (
-                                    <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                                {counterparties.map(c => (
+                                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>

@@ -1,50 +1,128 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-generator client {
-  provider = "prisma-client-js"
-}
 
 datasource db {
   provider = "sqlite"
   url      = "file:./dev.db"
 }
 
-model Client {
-  id        String    @id @default(cuid())
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Counterparty {
+  id        String   @id @default(cuid())
   name      String
-  email     String    @unique
+  email     String   @unique
   phone     String?
   address   String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  payments  Payment[]
+  types     CounterpartyType[]
+
+  salesOrders     SalesOrder[]
+  purchaseOrders  PurchaseOrder[]
+  payments        Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum CounterpartyType {
+  CLIENT
+  VENDOR
 }
 
 model Product {
-  id         String   @id @default(cuid())
-  name       String
-  sku        String   @unique
-  category   String?
-  stock      Int
-  price      Float
-  imageUrl   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  sku       String   @unique
+  category  String?
+  stock     Int
+  price     Float
+  imageUrl  String?
+
+  salesOrderItems     SalesOrderItem[]
+  purchaseOrderItems  PurchaseOrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
+
+model SalesOrder {
+  id        String   @id @default(cuid())
+  orderNumber String @unique
+  orderDate DateTime
+  status    String // e.g., Pending, Fulfilled, Cancelled
+
+  subtotal  Float
+  tax       Float
+  total     Float
+
+  counterpartyId  String
+  counterparty    Counterparty @relation(fields: [counterpartyId], references: [id])
+  items           SalesOrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SalesOrderItem {
+  id          String   @id @default(cuid())
+  quantity    Int
+  unitPrice   Float
+
+  orderId     String
+  order       SalesOrder @relation(fields: [orderId], references: [id])
+  
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PurchaseOrder {
+  id            String   @id @default(cuid())
+  orderNumber   String   @unique
+  orderDate     DateTime
+  status        String   // e.g., Pending, Received, Cancelled
+  
+  subtotal      Float
+  tax           Float
+  total         Float
+
+  counterpartyId String
+  counterparty   Counterparty @relation(fields: [counterpartyId], references: [id])
+  items          PurchaseOrderItem[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model PurchaseOrderItem {
+  id          String   @id @default(cuid())
+  quantity    Int
+  unitPrice   Float
+
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id])
+
+  productId   String
+  product     Product     @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 
 model Payment {
   id          String   @id @default(cuid())
-  amount      Float
-  type        String // "Cash", "Bank Transfer"
-  status      String // "Received", "Sent"
-  description String
   date        DateTime
-  client      Client   @relation(fields: [clientId], references: [id])
-  clientId    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  description String?
+  amount      Float    // Positive for income, negative for expense
+  type        String   // e.g., Bank Transfer, Cash, Credit Card
+  status      String   // e.g., Received, Sent, Pending
+
+  counterpartyId String
+  counterparty   Counterparty @relation(fields: [counterpartyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
