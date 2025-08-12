@@ -1,63 +1,60 @@
 
 import NextAuth from 'next-auth';
-import { PrismaAdapter } from '@auth/prisma-adapter';
 import Credentials from 'next-auth/providers/credentials';
 import prisma from './lib/prisma';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(prisma),
   secret: process.env.AUTH_SECRET,
+  session: {
+    strategy: 'jwt',
+  },
   providers: [
     Credentials({
       name: 'Credentials',
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: {  label: "Password", type: "password" }
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) {
-            return null;
+          return null;
         }
 
         const user = await prisma.user.findUnique({
-            where: { email: credentials.email as string }
+          where: { email: credentials.email as string },
         });
 
-        if (!user || user.password !== credentials.password) { // In a real app, hash and compare passwords!
-            return null;
+        // In a real app, you should hash and compare passwords
+        // For this project, we are using plain text comparison
+        if (!user || user.password !== credentials.password) {
+          return null;
         }
-
-        // We can return the full user object, NextAuth handles the rest
+        
+        // The user object will be encoded in the JWT
         return user;
-      }
-    })
+      },
+    }),
   ],
-  session: {
-    strategy: 'jwt',
-  },
   callbacks: {
-    async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
-      }
-      return session;
-    },
-    async jwt({ token }) {
-      if (!token.email) {
-          return token;
-      }
-      const user = await prisma.user.findUnique({
-        where: { email: token.email },
-      });
+    async jwt({ token, user }) {
+      // On initial sign in, `user` object is available
       if (user) {
         token.id = user.id;
         token.role = user.role;
       }
       return token;
     },
+    async session({ session, token }) {
+      // Add id and role to the session object
+      if (token && session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
+      }
+      return session;
+    },
   },
   pages: {
     signIn: '/login',
+    error: '/login' // Redirect to login page on error
   },
 });
