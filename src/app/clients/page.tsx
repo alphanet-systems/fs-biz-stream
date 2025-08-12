@@ -29,8 +29,21 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { type Client } from "@/types";
 
 export default function ClientsPage() {
+  const [clientList, setClientList] = useState<Client[]>(clients);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const handleAddClient = (newClient: Client) => {
+    setClientList(prevList => [newClient, ...prevList]);
+  };
+
+  const filteredClients = clientList.filter(client =>
+    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">
       <Card>
@@ -45,12 +58,17 @@ export default function ClientsPage() {
                 <File className="h-4 w-4 mr-2" />
                 Export
               </Button>
-              <AddClientSheet />
+              <AddClientSheet onAddClient={handleAddClient} />
             </div>
           </div>
           <div className="relative mt-4">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search clients..." className="pl-8" />
+            <Input 
+              placeholder="Search clients..." 
+              className="pl-8" 
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
           </div>
         </CardHeader>
         <CardContent>
@@ -67,7 +85,7 @@ export default function ClientsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clients.map((client) => (
+              {filteredClients.map((client) => (
                 <TableRow key={client.id}>
                   <TableCell>
                     <div className="font-medium">{client.name}</div>
@@ -103,7 +121,7 @@ export default function ClientsPage() {
   );
 }
 
-function AddClientSheet() {
+function AddClientSheet({ onAddClient }: { onAddClient: (client: Client) => void }) {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
@@ -115,7 +133,9 @@ function AddClientSheet() {
     
     const { toast } = useToast();
 
-    const isFormValid = isNameValid === true && isEmailValid === true;
+    const isFormValid = useMemo(() => {
+        return isNameValid === true && isEmailValid === true;
+    }, [isNameValid, isEmailValid]);
 
     const validateName = (currentName: string) => {
         setIsNameValid(currentName.trim() !== '');
@@ -138,7 +158,7 @@ function AddClientSheet() {
     const handleSaveClient = () => {
         if (!isFormValid) return;
 
-        const newClient = {
+        const newClient: Client = {
             id: `c-${Date.now()}`,
             name,
             email,
@@ -147,8 +167,7 @@ function AddClientSheet() {
             createdAt: new Date().toISOString().split('T')[0],
         };
 
-        // In a real app, you'd send this to your API
-        console.log("New Client Saved:", newClient);
+        onAddClient(newClient);
         
         toast({
             title: "Client Saved",

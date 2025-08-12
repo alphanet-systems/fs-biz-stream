@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { PlusCircle, Search, File, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
-import { salesOrders } from "@/lib/mock-data";
+import { salesOrders as initialSalesOrders } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type SalesOrder } from "@/types";
@@ -43,6 +43,17 @@ const getStatusVariant = (status: SalesOrder['status']) => {
 };
 
 export default function SalesPage() {
+  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+
+  useEffect(() => {
+    // In a real app, you'd fetch this from an API.
+    // We'll merge initial mock data with anything from localStorage.
+    const storedOrders = JSON.parse(localStorage.getItem('salesOrders') || '[]');
+    const combinedOrders = [...storedOrders, ...initialSalesOrders.filter(
+        initialOrder => !storedOrders.some((storedOrder: SalesOrder) => storedOrder.id === initialOrder.id)
+    )];
+    setSalesOrders(combinedOrders);
+  }, []);
 
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">

@@ -24,15 +24,28 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
 import { products } from "@/lib/mock-data";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription, SheetClose } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { type Product } from "@/types";
 
 export default function InventoryPage() {
+  const [productList, setProductList] = useState<Product[]>(products);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const handleAddProduct = (newProduct: Product) => {
+    setProductList(prevList => [newProduct, ...prevList]);
+  };
+  
+  const filteredProducts = productList.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">
       <Card>
@@ -47,12 +60,17 @@ export default function InventoryPage() {
                 <File className="h-4 w-4 mr-2" />
                 Export
               </Button>
-              <AddProductSheet />
+              <AddProductSheet onAddProduct={handleAddProduct}/>
             </div>
           </div>
           <div className="relative mt-4">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search products..." className="pl-8" />
+            <Input 
+                placeholder="Search products..." 
+                className="pl-8"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+            />
           </div>
         </CardHeader>
         <CardContent>
@@ -70,7 +88,7 @@ export default function InventoryPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>
                     <Image
@@ -120,7 +138,7 @@ export default function InventoryPage() {
   );
 }
 
-function AddProductSheet() {
+function AddProductSheet({ onAddProduct }: { onAddProduct: (product: Product) => void }) {
     const [name, setName] = useState('');
     const [sku, setSku] = useState('');
     const [stock, setStock] = useState('');
@@ -135,7 +153,9 @@ function AddProductSheet() {
     
     const { toast } = useToast();
 
-    const isFormValid = isNameValid === true && isSkuValid === true && isStockValid === true && isPriceValid === true;
+    const isFormValid = useMemo(() => {
+        return isNameValid === true && isSkuValid === true && isStockValid === true && isPriceValid === true;
+    }, [isNameValid, isSkuValid, isStockValid, isPriceValid]);
 
     const validateField = (field: 'name' | 'sku' | 'stock' | 'price', value: string) => {
         const isNotEmpty = value.trim() !== '';
@@ -150,7 +170,7 @@ function AddProductSheet() {
                 setIsStockValid(isNotEmpty && !isNaN(Number(value)) && Number(value) >= 0);
                 break;
             case 'price':
-                setIsPriceValid(isNotEmpty && !isNaN(Number(value)) && Number(value) >= 0);
+                setIsPriceValid(isNotEmpty && !isNaN(Number(value)) && Number(value) > 0);
                 break;
         }
     };
@@ -170,7 +190,7 @@ function AddProductSheet() {
     const handleSaveProduct = () => {
         if (!isFormValid) return;
 
-        const newProduct = {
+        const newProduct: Product = {
             id: `p-${Date.now()}`,
             name,
             sku,
@@ -180,8 +200,7 @@ function AddProductSheet() {
             imageUrl: "https://placehold.co/100x100.png",
         };
 
-        // In a real app, you'd send this to your API
-        console.log("New Product Saved:", newProduct);
+        onAddProduct(newProduct);
         
         toast({
             title: "Product Saved",
@@ -189,7 +208,7 @@ function AddProductSheet() {
         });
         
         resetForm();
-        setOpen(false); // Close the sheet
+        setOpen(false);
     };
 
     return (
@@ -231,7 +250,7 @@ function AddProductSheet() {
                         <div className="space-y-2">
                             <Label htmlFor="price">Price *</Label>
                             <Input id="price" type="number" placeholder="e.g., 79.99" value={price} onChange={e => { setPrice(e.target.value); validateField('price', e.target.value); }} onBlur={e => validateField('price', e.target.value)} />
-                            {isPriceValid === false && <ValidationMessage isValid={false} message="Must be a valid price." />}
+                            {isPriceValid === false && <ValidationMessage isValid={false} message="Must be a valid positive price." />}
                             {isPriceValid === true && <ValidationMessage isValid={true} message="Price is valid." />}
                         </div>
                     </div>

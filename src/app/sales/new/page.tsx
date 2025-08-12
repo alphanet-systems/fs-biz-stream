@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,10 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { clients, products } from '@/lib/mock-data';
 import { PlusCircle, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { type Product } from '@/types';
+import { type Product, type SalesOrder, type Client } from '@/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
 
 type LineItem = {
     id: string;
@@ -30,6 +31,8 @@ type LineItem = {
 export default function NewSalePage() {
     const [lineItems, setLineItems] = useState<LineItem[]>([]);
     const [selectedClientId, setSelectedClientId] = useState<string | undefined>();
+    const router = useRouter();
+    const { toast } = useToast();
 
     const handleAddLineItem = () => {
         setLineItems([...lineItems, { id: Date.now().toString(), productId: '', description: '', quantity: 1, unitPrice: 0, stock: 0 }]);
@@ -57,6 +60,42 @@ export default function NewSalePage() {
     const subtotal = lineItems.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
     const tax = subtotal * 0.1; // 10% tax
     const total = subtotal + tax;
+
+    const handleCreateOrder = () => {
+        if (!selectedClientId) return;
+        const client = clients.find(c => c.id === selectedClientId) as Client;
+        
+        const newOrder: SalesOrder = {
+            id: `so-${Date.now()}`,
+            orderNumber: `SO-2024-${Date.now().toString().slice(-4)}`,
+            client,
+            orderDate: new Date().toISOString().split('T')[0],
+            items: lineItems.map(li => ({
+                id: `item-${Date.now()}-${li.productId}`,
+                productId: li.productId,
+                description: li.description,
+                quantity: li.quantity,
+                unitPrice: li.unitPrice,
+            })),
+            subtotal,
+            tax,
+            total,
+            status: "Pending",
+            invoiceGenerated: false,
+        };
+
+        // This is where you would typically send to an API.
+        // For now, we'll use localStorage to simulate it.
+        const existingOrders = JSON.parse(localStorage.getItem('salesOrders') || '[]');
+        localStorage.setItem('salesOrders', JSON.stringify([newOrder, ...existingOrders]));
+        
+        toast({
+            title: "Sales Order Created",
+            description: `Order ${newOrder.orderNumber} has been successfully created.`,
+        });
+
+        router.push('/sales');
+    };
 
     return (
         <div className="flex-1 p-4 md:p-8 pt-6">
@@ -177,11 +216,9 @@ export default function NewSalePage() {
                         <Label htmlFor="generate-invoice">Generate Invoice</Label>
                     </div>
                     <div className="flex gap-2">
-                        <Link href="/sales" passHref>
-                           <Button variant="outline">Cancel</Button>
-                        </Link>
+                        <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
                         <Button variant="outline" disabled={!selectedClientId}>Save as Draft</Button>
-                        <Button disabled={!selectedClientId}>Create Sales Order</Button>
+                        <Button disabled={!selectedClientId || lineItems.length === 0} onClick={handleCreateOrder}>Create Sales Order</Button>
                     </div>
                 </CardFooter>
             </Card>
@@ -237,7 +274,7 @@ function ProductSelector({ onSelect, selectedProductId }: { onSelect: (product: 
                             key={product.id}
                             variant="ghost"
                             className={cn(
-                                "w-full justify-start font-normal group",
+                                "w-full justify-start font-normal group hover:bg-accent/80 hover:text-accent-foreground",
                                 selectedProductId === product.id && "bg-accent text-accent-foreground"
                             )}
                             onClick={() => handleSelect(product)}
@@ -249,7 +286,7 @@ function ProductSelector({ onSelect, selectedProductId }: { onSelect: (product: 
                                 )}
                             />
                             <div className='flex justify-between w-full'>
-                                <span className={cn("group-hover:text-accent-foreground")}>{product.name}</span>
+                                <span className={cn("group-hover:text-accent-foreground", selectedProductId === product.id ? "text-accent-foreground" : "")}>{product.name}</span>
                                 <span className={cn('text-xs group-hover:text-accent-foreground', selectedProductId === product.id ? 'text-accent-foreground' : 'text-muted-foreground')}>
                                   Stock: {product.stock}
                                 </span>
