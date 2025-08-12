@@ -1,5 +1,6 @@
 
 import { type Client, type Product, type SalesOrder, type CalendarEvent, type Payment, type ChartData } from "@/types";
+import { type Payment as PrismaPayment } from "@prisma/client";
 
 export const clients: Client[] = [
   { id: "1", name: "Innovate Inc.", email: "contact@innovate.com", phone: "123-456-7890", address: "123 Tech Ave, Silicon Valley, CA", createdAt: "2023-01-15" },
@@ -74,7 +75,7 @@ export const calendarEvents: CalendarEvent[] = [
     { id: '4', date: new Date(2024, new Date().getMonth(), 22, 16, 0), title: 'Quarterly Planning', client: clients[3] },
 ];
 
-export const payments: Payment[] = [
+export const payments: (Omit<PrismaPayment, 'clientId' | 'date'> & { client: Client, date: string })[] = [
   { id: 'pay1', date: '2024-07-20', client: clients[0], description: 'Payment for INV-2024-001', amount: 3080, type: 'Bank Transfer', status: 'Received' },
   { id: 'pay2', date: '2024-07-18', client: clients[4], description: 'Office Supplies Purchase', amount: -150.75, type: 'Cash', status: 'Sent' },
   { id: 'pay3', date: '2024-07-15', client: clients[3], description: 'Consulting Fee', amount: 500, type: 'Bank Transfer', status: 'Received' },

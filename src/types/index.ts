@@ -1,4 +1,6 @@
 
+import { type Payment as PrismaPayment } from "@prisma/client";
+
 export type Client = {
   id: string;
   name: string;
@@ -38,14 +40,9 @@ export type SalesOrder = {
   invoiceGenerated: boolean;
 };
 
-export type Payment = {
-  id: string;
-  date: string;
+export type Payment = Omit<PrismaPayment, 'clientId' | 'date'> & {
   client: Client;
-  description: string;
-  amount: number;
-  type: "Cash" | "Bank Transfer";
-  status: "Received" | "Sent";
+  date: string;
 };
 
 export type CalendarEvent = {

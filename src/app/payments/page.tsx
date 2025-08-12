@@ -46,7 +46,7 @@ export default function PaymentsPage() {
   
   const filteredPayments = paymentList.filter(payment =>
     payment.client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.description.toLowerCase().includes(searchTerm.toLowerCase())
+    (payment.description && payment.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
