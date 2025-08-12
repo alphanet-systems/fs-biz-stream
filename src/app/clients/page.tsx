@@ -111,7 +111,7 @@ function AddClientSheet() {
     const [isNameValid, setIsNameValid] = useState<boolean | null>(null);
     const [isEmailValid, setIsEmailValid] = useState<boolean | null>(null);
 
-    const isFormValid = isNameValid && isEmailValid;
+    const isFormValid = isNameValid === true && isEmailValid === true;
 
     const validateName = (currentName: string) => {
         setIsNameValid(currentName.trim() !== '');

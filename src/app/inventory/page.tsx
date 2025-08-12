@@ -131,7 +131,7 @@ function AddProductSheet() {
     const [isStockValid, setIsStockValid] = useState<boolean | null>(null);
     const [isPriceValid, setIsPriceValid] = useState<boolean | null>(null);
 
-    const isFormValid = isNameValid && isSkuValid && isStockValid && isPriceValid;
+    const isFormValid = isNameValid === true && isSkuValid === true && isStockValid === true && isPriceValid === true;
 
     const validateField = (field: 'name' | 'sku' | 'stock' | 'price', value: string) => {
         const isNotEmpty = value.trim() !== '';
