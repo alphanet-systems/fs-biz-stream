@@ -30,6 +30,7 @@ import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function InventoryPage() {
   return (
@@ -125,11 +126,14 @@ function AddProductSheet() {
     const [stock, setStock] = useState('');
     const [price, setPrice] = useState('');
     const [category, setCategory] = useState('');
+    const [open, setOpen] = useState(false);
 
     const [isNameValid, setIsNameValid] = useState<boolean | null>(null);
     const [isSkuValid, setIsSkuValid] = useState<boolean | null>(null);
     const [isStockValid, setIsStockValid] = useState<boolean | null>(null);
     const [isPriceValid, setIsPriceValid] = useState<boolean | null>(null);
+    
+    const { toast } = useToast();
 
     const isFormValid = isNameValid === true && isSkuValid === true && isStockValid === true && isPriceValid === true;
 
@@ -150,11 +154,48 @@ function AddProductSheet() {
                 break;
         }
     };
+    
+    const resetForm = () => {
+        setName('');
+        setSku('');
+        setStock('');
+        setPrice('');
+        setCategory('');
+        setIsNameValid(null);
+        setIsSkuValid(null);
+        setIsStockValid(null);
+        setIsPriceValid(null);
+    };
+
+    const handleSaveProduct = () => {
+        if (!isFormValid) return;
+
+        const newProduct = {
+            id: `p-${Date.now()}`,
+            name,
+            sku,
+            stock: Number(stock),
+            price: Number(price),
+            category,
+            imageUrl: "https://placehold.co/100x100.png",
+        };
+
+        // In a real app, you'd send this to your API
+        console.log("New Product Saved:", newProduct);
+        
+        toast({
+            title: "Product Saved",
+            description: `${name} has been successfully added to your inventory.`,
+        });
+        
+        resetForm();
+        setOpen(false); // Close the sheet
+    };
 
     return (
-        <Sheet>
+        <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button>
+              <Button onClick={() => setOpen(true)}>
                 <PlusCircle className="h-4 w-4 mr-2" />
                 Add Product
               </Button>
@@ -200,10 +241,8 @@ function AddProductSheet() {
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end gap-2">
-                    <SheetClose asChild>
-                        <Button variant="outline">Cancel</Button>
-                    </SheetClose>
-                    <Button disabled={!isFormValid}>Save Product</Button>
+                    <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSaveProduct} disabled={!isFormValid}>Save Product</Button>
                 </div>
             </SheetContent>
         </Sheet>

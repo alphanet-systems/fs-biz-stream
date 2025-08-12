@@ -28,6 +28,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescri
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ClientsPage() {
   return (
@@ -107,9 +108,12 @@ function AddClientSheet() {
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
+    const [open, setOpen] = useState(false);
 
     const [isNameValid, setIsNameValid] = useState<boolean | null>(null);
     const [isEmailValid, setIsEmailValid] = useState<boolean | null>(null);
+    
+    const { toast } = useToast();
 
     const isFormValid = isNameValid === true && isEmailValid === true;
 
@@ -121,12 +125,44 @@ function AddClientSheet() {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         setIsEmailValid(emailRegex.test(currentEmail));
     };
+    
+    const resetForm = () => {
+        setName('');
+        setEmail('');
+        setPhone('');
+        setAddress('');
+        setIsNameValid(null);
+        setIsEmailValid(null);
+    };
 
+    const handleSaveClient = () => {
+        if (!isFormValid) return;
+
+        const newClient = {
+            id: `c-${Date.now()}`,
+            name,
+            email,
+            phone,
+            address,
+            createdAt: new Date().toISOString().split('T')[0],
+        };
+
+        // In a real app, you'd send this to your API
+        console.log("New Client Saved:", newClient);
+        
+        toast({
+            title: "Client Saved",
+            description: `${name} has been successfully added to your clients.`,
+        });
+        
+        resetForm();
+        setOpen(false); // Close the sheet
+    };
 
     return (
-        <Sheet>
+        <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button>
+              <Button onClick={() => setOpen(true)}>
                 <PlusCircle className="h-4 w-4 mr-2" />
                 Add Client
               </Button>
@@ -181,10 +217,8 @@ function AddClientSheet() {
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end gap-2">
-                    <SheetClose asChild>
-                        <Button variant="outline">Cancel</Button>
-                    </SheetClose>
-                    <Button disabled={!isFormValid}>Save Client</Button>
+                    <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSaveClient} disabled={!isFormValid}>Save Client</Button>
                 </div>
             </SheetContent>
         </Sheet>
