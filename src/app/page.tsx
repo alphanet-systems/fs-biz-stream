@@ -30,8 +30,9 @@ import {
   ChartConfig,
 } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { type SalesOrder, type ChartData } from "@/types";
+import { type ChartData } from "@/types";
 import { salesOrders, chartData } from "@/lib/mock-data";
+import { type SalesOrder, type Counterparty } from "@prisma/client";
 
 const chartConfig = {
   profit: {
@@ -43,6 +44,9 @@ const chartConfig = {
     color: "hsl(var(--chart-2))",
   },
 } satisfies ChartConfig;
+
+type SalesOrderWithCounterparty = SalesOrder & { counterparty: Counterparty };
+
 
 export default function DashboardPage() {
   const totalRevenue = salesOrders.reduce(
@@ -155,25 +159,25 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Recent Sales</CardTitle>
             <CardDescription>
-              The most recent sales from your clients.
+              The most recent sales from your counterparties.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Client</TableHead>
+                  <TableHead>Counterparty</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {salesOrders.slice(0, 5).map((order) => (
+                {salesOrders.slice(0, 5).map((order: SalesOrderWithCounterparty) => (
                   <TableRow key={order.id}>
                     <TableCell>
-                      <div className="font-medium">{order.client.name}</div>
+                      <div className="font-medium">{order.counterparty.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {order.client.email}
+                        {order.counterparty.email}
                       </div>
                     </TableCell>
                     <TableCell>

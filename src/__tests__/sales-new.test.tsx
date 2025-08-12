@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import NewSalePage from '@/app/sales/new/page';
 import * as actions from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
-import { type Client, type Product, type SalesOrder } from '@prisma/client';
+import { type Counterparty, type Product, type SalesOrder } from '@prisma/client';
 
 const mockRouter = {
   push: jest.fn(),
@@ -18,7 +18,7 @@ jest.mock('next/navigation', () => ({
 // Mock the server actions
 jest.mock('@/lib/actions', () => ({
   __esModule: true,
-  getClients: jest.fn(),
+  getCounterparties: jest.fn(),
   getProducts: jest.fn(),
   createSalesOrder: jest.fn(),
 }));
@@ -31,14 +31,14 @@ jest.mock('@/hooks/use-toast', () => ({
   })),
 }));
 
-const mockGetClients = actions.getClients as jest.Mock;
+const mockGetCounterparties = actions.getCounterparties as jest.Mock;
 const mockGetProducts = actions.getProducts as jest.Mock;
 const mockCreateSalesOrder = actions.createSalesOrder as jest.Mock;
 const mockUseToast = useToast as jest.Mock;
 const mockToast = jest.fn();
 
-const mockClients: Client[] = [
-  { id: '1', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', address: '123 Tech Ave', createdAt: new Date(), updatedAt: new Date() },
+const mockClients: Counterparty[] = [
+  { id: '1', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', address: '123 Tech Ave', types: ['CLIENT'], createdAt: new Date(), updatedAt: new Date() },
 ];
 const mockProducts: Product[] = [
   { id: 'p1', name: 'Ergo-Comfort Keyboard', sku: 'KB-4532', category: 'Electronics', stock: 10, price: 79.99, imageUrl: null, createdAt: new Date(), updatedAt: new Date() },
@@ -48,7 +48,7 @@ const mockProducts: Product[] = [
 describe('NewSalePage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetClients.mockResolvedValue(mockClients);
+    mockGetCounterparties.mockResolvedValue(mockClients);
     mockGetProducts.mockResolvedValue(mockProducts);
     mockUseToast.mockReturnValue({ toast: mockToast });
   });
@@ -144,7 +144,7 @@ describe('NewSalePage', () => {
   });
 
   it('successfully creates a sales order and redirects', async () => {
-    const newOrder: SalesOrder = { id: 'so-new', orderNumber: 'SO-123456', clientId: '1', orderDate: new Date(), status: 'Pending', subtotal: 79.99, tax: 8, total: 87.99, createdAt: new Date(), updatedAt: new Date() };
+    const newOrder: SalesOrder = { id: 'so-new', orderNumber: 'SO-123456', counterpartyId: '1', orderDate: new Date(), status: 'Pending', subtotal: 79.99, tax: 8, total: 87.99, createdAt: new Date(), updatedAt: new Date() };
     mockCreateSalesOrder.mockResolvedValue({ success: true, data: newOrder });
 
     render(<NewSalePage />);
@@ -165,7 +165,7 @@ describe('NewSalePage', () => {
     
     await waitFor(() => {
       expect(mockCreateSalesOrder).toHaveBeenCalledWith({
-        clientId: '1',
+        counterpartyId: '1',
         orderDate: expect.any(Date),
         items: [{
           productId: 'p1',

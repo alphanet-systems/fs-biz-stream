@@ -3,7 +3,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import SalesPage from '@/app/sales/page';
 import * as actions from '@/lib/actions';
-import { type Client, type SalesOrder } from '@prisma/client';
+import { type Counterparty, type SalesOrder } from '@prisma/client';
 
 // Mock the server actions
 jest.mock('@/lib/actions', () => ({
@@ -20,19 +20,19 @@ jest.mock('next/link', () => {
 
 const mockGetSalesOrders = actions.getSalesOrders as jest.Mock;
 
-type SalesOrderWithClient = SalesOrder & { client: Client };
+type SalesOrderWithCounterparty = SalesOrder & { counterparty: Counterparty };
 
-const mockClients: Client[] = [
-  { id: '1', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', address: '123 Tech Ave', createdAt: new Date(), updatedAt: new Date() },
-  { id: '2', name: 'Solutions Co.', email: 'support@solutions.co', phone: '234-567-8901', address: '456 Business Blvd', createdAt: new Date(), updatedAt: new Date() },
+const mockCounterparties: Counterparty[] = [
+  { id: '1', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', address: '123 Tech Ave', types: ['CLIENT'], createdAt: new Date(), updatedAt: new Date() },
+  { id: '2', name: 'Solutions Co.', email: 'support@solutions.co', phone: '234-567-8901', address: '456 Business Blvd', types: ['CLIENT'], createdAt: new Date(), updatedAt: new Date() },
 ];
 
-const mockSalesOrders: SalesOrderWithClient[] = [
+const mockSalesOrders: SalesOrderWithCounterparty[] = [
   { 
     id: 'so1', 
     orderNumber: 'SO-2024-001',
-    clientId: '1',
-    client: mockClients[0],
+    counterpartyId: '1',
+    counterparty: mockCounterparties[0],
     orderDate: new Date('2024-07-20'),
     status: 'Fulfilled',
     subtotal: 1500,
@@ -44,8 +44,8 @@ const mockSalesOrders: SalesOrderWithClient[] = [
   { 
     id: 'so2', 
     orderNumber: 'SO-2024-002',
-    clientId: '2',
-    client: mockClients[1],
+    counterpartyId: '2',
+    counterparty: mockCounterparties[1],
     orderDate: new Date('2024-07-18'),
     status: 'Pending',
     subtotal: 250,
@@ -73,7 +73,7 @@ describe('SalesPage', () => {
     });
   });
 
-  it('displays correct client names and totals', async () => {
+  it('displays correct counterparty names and totals', async () => {
     render(<SalesPage />);
 
     await waitFor(() => {

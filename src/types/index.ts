@@ -6,7 +6,7 @@ export type Product = PrismaProduct;
 export type SalesOrder = PrismaSalesOrder;
 
 
-export type Payment = Omit<PrismaPayment, 'counterpartyId' | 'date'> & {
+export type Payment = Omit<PrismaPayment, 'date'> & {
   counterparty: Counterparty;
   date: string;
 };

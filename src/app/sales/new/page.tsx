@@ -216,18 +216,11 @@ export default function NewSalePage() {
                         </div>
                     </div>
                 </CardContent>
-                <CardFooter className="flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="generate-invoice" />
-                        <Label htmlFor="generate-invoice">Generate Invoice</Label>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-                        <Button variant="outline" disabled={!selectedCounterpartyId || isPending}>Save as Draft</Button>
-                        <Button disabled={!selectedCounterpartyId || lineItems.length === 0 || isPending} onClick={handleCreateOrder}>
-                            {isPending ? "Creating..." : "Create Sales Order"}
-                        </Button>
-                    </div>
+                <CardFooter className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
+                    <Button disabled={!selectedCounterpartyId || lineItems.length === 0 || isPending} onClick={handleCreateOrder}>
+                        {isPending ? "Creating..." : "Create Sales Order"}
+                    </Button>
                 </CardFooter>
             </Card>
         </div>
@@ -258,6 +251,11 @@ function ProductSelector({ products, onSelect, selectedProductId }: { products: 
           role="combobox"
           aria-expanded={open}
           className="w-full justify-between"
+          onClick={(e) => {
+              e.preventDefault()
+              setOpen(true)
+            }
+          }
         >
           {selectedProduct ? selectedProduct.name : "Select product..."}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />

@@ -5,17 +5,17 @@ import userEvent from '@testing-library/user-event';
 import PaymentsPage from '@/app/payments/page';
 import * as actions from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
-import { type Client, type Payment } from '@prisma/client';
+import { type Counterparty, type Payment } from '@prisma/client';
 
-// Custom type for the test, as the component expects a client object within the payment
-type PaymentWithClient = Payment & { client: Client };
+// Custom type for the test, as the component expects a counterparty object within the payment
+type PaymentWithCounterparty = Payment & { counterparty: Counterparty };
 
 // Mock server actions
 jest.mock('@/lib/actions', () => ({
   __esModule: true,
   getPayments: jest.fn(),
   createPayment: jest.fn(),
-  getClients: jest.fn(),
+  getCounterparties: jest.fn(),
 }));
 
 // Mock toast hook
@@ -28,21 +28,21 @@ jest.mock('@/hooks/use-toast', () => ({
 
 const mockGetPayments = actions.getPayments as jest.Mock;
 const mockCreatePayment = actions.createPayment as jest.Mock;
-const mockGetClients = actions.getClients as jest.Mock;
+const mockGetCounterparties = actions.getCounterparties as jest.Mock;
 const mockUseToast = useToast as jest.Mock;
 const mockToast = jest.fn();
 
-const mockClients: Client[] = [
-  { id: '1', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', address: '123 Tech Ave', createdAt: new Date(), updatedAt: new Date() },
-  { id: '2', name: 'Solutions Co.', email: 'support@solutions.co', phone: '234-567-8901', address: '456 Business Blvd', createdAt: new Date(), updatedAt: new Date() },
+const mockCounterparties: Counterparty[] = [
+  { id: '1', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', address: '123 Tech Ave', types: ['CLIENT'], createdAt: new Date(), updatedAt: new Date() },
+  { id: '2', name: 'Solutions Co.', email: 'support@solutions.co', phone: '234-567-8901', address: '456 Business Blvd', types: ['CLIENT'], createdAt: new Date(), updatedAt: new Date() },
 ];
 
-const mockPayments: PaymentWithClient[] = [
+const mockPayments: PaymentWithCounterparty[] = [
   { 
     id: 'pay1', 
     date: new Date('2024-07-20'), 
-    clientId: '1', 
-    client: mockClients[0],
+    counterpartyId: '1', 
+    counterparty: mockCounterparties[0],
     description: 'Payment for INV-001', 
     amount: 1500, 
     type: 'Bank Transfer', 
@@ -53,8 +53,8 @@ const mockPayments: PaymentWithClient[] = [
    { 
     id: 'pay2', 
     date: new Date('2024-07-18'), 
-    clientId: '2',
-    client: mockClients[1],
+    counterpartyId: '2',
+    counterparty: mockCounterparties[1],
     description: 'Office Supplies', 
     amount: -250, 
     type: 'Cash', 
@@ -68,7 +68,7 @@ describe('PaymentsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetPayments.mockResolvedValue(mockPayments);
-    mockGetClients.mockResolvedValue(mockClients);
+    mockGetCounterparties.mockResolvedValue(mockCounterparties);
     mockUseToast.mockReturnValue({ toast: mockToast });
   });
 
@@ -99,8 +99,9 @@ describe('PaymentsPage', () => {
   });
   
   it('opens the add income sheet and creates a new income payment', async () => {
-    const newPayment: Payment = { id: 'pay3', amount: 500, type: 'Bank Transfer', status: 'Received', description: 'New Income', clientId: '1', date: new Date(), createdAt: new Date(), updatedAt: new Date() };
-    mockCreatePayment.mockResolvedValue({ success: true, data: newPayment });
+    const newPaymentData = { amount: 500, type: 'Bank Transfer', status: 'Received', description: 'New Income', counterpartyId: '1' };
+    const returnedPayment: Payment = { ...newPaymentData, id: 'pay3', date: new Date(), createdAt: new Date(), updatedAt: new Date() };
+    mockCreatePayment.mockResolvedValue({ success: true, data: returnedPayment });
     
     render(<PaymentsPage />);
     const user = userEvent.setup();
@@ -109,16 +110,16 @@ describe('PaymentsPage', () => {
     const addIncomeButton = screen.getByRole('button', { name: /add income/i });
     await user.click(addIncomeButton);
     
-    // Wait for clients to load in the sheet
+    // Wait for counterparties to load in the sheet
     await waitFor(() => expect(screen.getByText('Add Income')).toBeInTheDocument());
 
     // Fill form
     await user.type(screen.getByLabelText('Amount *'), '500');
     await user.type(screen.getByLabelText('Description *'), 'New Income');
 
-    // Select a client
-    const clientSelect = screen.getByRole('combobox', {name: /client/i});
-    await user.click(clientSelect);
+    // Select a counterparty
+    const counterpartySelect = screen.getByRole('combobox');
+    await user.click(counterpartySelect);
     await user.click(await screen.findByText('Innovate Inc.'));
 
     // Save
@@ -131,7 +132,7 @@ describe('PaymentsPage', () => {
         type: 'Bank Transfer',
         status: 'Received',
         description: 'New Income',
-        clientId: '1',
+        counterpartyId: '1',
       });
     });
 

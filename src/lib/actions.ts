@@ -185,6 +185,7 @@ export async function createSalesOrder(input: SalesOrderInput): Promise<ServerAc
 
         revalidatePath('/sales');
         revalidatePath('/inventory'); // Revalidate inventory to show new stock levels
+        revalidatePath('/pos'); // Revalidate POS to show new stock levels
         return { success: true, data: newSalesOrder };
     } catch (error) {
         console.error('Error creating sales order:', error);

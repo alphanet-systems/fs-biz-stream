@@ -27,9 +27,15 @@ export default function PosPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isPending, startTransition] = useTransition();
+    const { toast } = useToast();
+
+    const fetchProducts = () => {
+        getProducts().then(setProducts);
+    }
 
     React.useEffect(() => {
-        getProducts().then(setProducts);
+        fetchProducts();
     }, []);
 
     const addToCart = (product: Product) => {
@@ -66,7 +72,7 @@ export default function PosPage() {
     const onSuccessfulCheckout = () => {
         setCart([]);
         // Refetch products to get updated stock levels
-        getProducts().then(setProducts);
+        fetchProducts();
     }
 
     const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
