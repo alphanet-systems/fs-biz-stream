@@ -4,11 +4,11 @@ import prisma from '@/lib/prisma';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { type User } from '@prisma/client';
 
-export const { 
-  handlers: { GET, POST }, 
-  auth, 
-  signIn, 
-  signOut 
+export const {
+  handlers: { GET, POST },
+  auth,
+  signIn,
+  signOut
 } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
@@ -22,32 +22,54 @@ export const {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials: any) {
-        if (!credentials?.email || !credentials.password) {
+      async authorize(credentials) {
+        console.log("--- Authorize Function Triggered ---");
+        console.log("Received credentials from form:", credentials);
+
+        if (!credentials?.email || !credentials?.password) {
+          console.error("Credentials missing email or password.");
           return null;
         }
-
+        
         const email = credentials.email as string;
         const password = credentials.password as string;
-        
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
 
-        if (!user) {
-          console.error("No user found with that email.");
+        try {
+          // 1. Find the user in the database
+          console.log(`Searching for user with email: '${credentials.email}'`);
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email as string },
+          });
+
+          if (!user) {
+            console.error("DATABASE_SEARCH: User not found in database.");
+            return null; // Stop here if user doesn't exist
+          }
+
+          console.log("DATABASE_SEARCH: Found user:", user);
+
+          // 2. Compare the provided password with the one in the database
+          console.log("--- Password Comparison ---");
+          console.log(`Password from form: '${credentials.password}'`);
+          console.log(`Password from DB:   '${user.password}'`);
+
+          const passwordsMatch = user.password === credentials.password;
+
+          console.log(`Do passwords match? ${passwordsMatch}`);
+          console.log("--------------------------");
+
+
+          if (passwordsMatch) {
+            console.log("SUCCESS: Passwords match. Returning user.");
+            return user; // Success!
+          } else {
+            console.error("FAILURE: Passwords do not match.");
+            return null; // Passwords didn't match
+          }
+        } catch (error) {
+          console.error("An unexpected error occurred during authorization:", error);
           return null;
         }
-        
-        // In a real app, you MUST hash passwords.
-        const passwordsMatch = user.password === password;
-
-        if (passwordsMatch) {
-          return user;
-        }
-        
-        console.error("Passwords do not match.");
-        return null;
       },
     }),
   ],
