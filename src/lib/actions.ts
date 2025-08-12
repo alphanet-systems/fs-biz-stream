@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import { type Counterparty, type Product, type Payment, type SalesOrder, type PurchaseOrder } from '@prisma/client';
+import { type Counterparty, type Product, type Payment, type SalesOrder, type PurchaseOrder, type Wallet } from '@prisma/client';
 
 type ServerActionResult<T> = {
   success: boolean;
@@ -72,12 +72,41 @@ export async function createProduct(data: Omit<Product, 'id' | 'createdAt' | 'up
   }
 }
 
+// Wallet Actions
+export async function getWallets(): Promise<Wallet[]> {
+    try {
+        return await prisma.wallet.findMany({
+            orderBy: {
+                createdAt: 'asc',
+            },
+        });
+    } catch (error) {
+        console.error('Error fetching wallets:', error);
+        return [];
+    }
+}
+
+export async function createWallet(data: { name: string, balance: number }): Promise<ServerActionResult<Wallet>> {
+    try {
+        const newWallet = await prisma.wallet.create({
+            data,
+        });
+        revalidatePath('/payments');
+        return { success: true, data: newWallet };
+    } catch (error) {
+        console.error('Error creating wallet:', error);
+        return { success: false, error: 'Failed to create wallet.' };
+    }
+}
+
+
 // Payment Actions
-export async function getPayments(): Promise<(Payment & { counterparty: Counterparty })[]> {
+export async function getPayments(): Promise<(Payment & { counterparty: Counterparty, wallet: Wallet })[]> {
   try {
     return await prisma.payment.findMany({
       include: {
         counterparty: true,
+        wallet: true,
       },
       orderBy: {
         date: 'desc',
@@ -90,20 +119,39 @@ export async function getPayments(): Promise<(Payment & { counterparty: Counterp
   }
 }
 
-export async function createPayment(data: {
+type PaymentInput = {
     amount: number;
     type: string;
     status: string;
     description: string;
     counterpartyId: string;
-}): Promise<ServerActionResult<Payment>> {
+    walletId: string;
+};
+
+export async function createPayment(data: PaymentInput): Promise<ServerActionResult<Payment>> {
     try {
-        const newPayment = await prisma.payment.create({
-            data: {
-                ...data,
-                date: new Date(),
-            },
+        const newPayment = await prisma.$transaction(async (tx) => {
+            // 1. Create the payment record
+            const payment = await tx.payment.create({
+                data: {
+                    ...data,
+                    date: new Date(),
+                },
+            });
+
+            // 2. Update the wallet balance
+            await tx.wallet.update({
+                where: { id: data.walletId },
+                data: {
+                    balance: {
+                        increment: data.amount, // amount is positive for income, negative for expenses
+                    },
+                },
+            });
+
+            return payment;
         });
+        
         revalidatePath('/payments');
         return { success: true, data: newPayment };
     } catch (error) {
