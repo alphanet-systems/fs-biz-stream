@@ -1,63 +1,103 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { products } from '@/lib/mock-data';
 import Image from 'next/image';
 import { Plus, Minus, Trash2, Search, CreditCard, Landmark, DollarSign } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { getProducts, createSalesOrder } from '@/lib/actions';
+import { type Product } from '@prisma/client';
+import { useToast } from '@/hooks/use-toast';
 
 type CartItem = {
     id: string;
     name: string;
     price: number;
     quantity: number;
+    stock: number;
 };
 
 export default function PosPage() {
+    const [products, setProducts] = useState<Product[]>([]);
     const [cart, setCart] = useState<CartItem[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
 
-    const addToCart = (product: typeof products[0]) => {
+    React.useEffect(() => {
+        getProducts().then(setProducts);
+    }, []);
+
+    const addToCart = (product: Product) => {
         setCart(prevCart => {
             const existingItem = prevCart.find(item => item.id === product.id);
             if (existingItem) {
+                // Prevent adding more than available in stock
+                if (existingItem.quantity >= product.stock) return prevCart;
                 return prevCart.map(item => 
                     item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
                 );
             }
-            return [...prevCart, { id: product.id, name: product.name, price: product.price, quantity: 1 }];
+            if (product.stock > 0) {
+              return [...prevCart, { id: product.id, name: product.name, price: product.price, quantity: 1, stock: product.stock }];
+            }
+            return prevCart;
         });
     };
 
     const updateQuantity = (id: string, newQuantity: number) => {
+        const itemInCart = cart.find(item => item.id === id);
+        if (!itemInCart) return;
+
         if (newQuantity <= 0) {
             setCart(cart.filter(item => item.id !== id));
+        } else if (newQuantity > itemInCart.stock) {
+            // Do not allow quantity to exceed stock
+            setCart(cart.map(item => item.id === id ? { ...item, quantity: itemInCart.stock } : item));
         } else {
             setCart(cart.map(item => item.id === id ? { ...item, quantity: newQuantity } : item));
         }
     };
+    
+    const onSuccessfulCheckout = () => {
+        setCart([]);
+        // Refetch products to get updated stock levels
+        getProducts().then(setProducts);
+    }
 
     const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
     const tax = subtotal * 0.1;
     const total = subtotal + tax;
+    
+    const filteredProducts = products.filter(product => 
+        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <div className="h-[calc(100vh-65px)] flex">
             <div className="w-2/3 p-4">
                 <div className="relative mb-4">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search products..." className="pl-8" />
+                    <Input 
+                        placeholder="Search products..." 
+                        className="pl-8" 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
                 <ScrollArea className="h-[calc(100%-60px)]">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        {products.map(product => (
-                            <Card key={product.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => addToCart(product)}>
+                        {filteredProducts.map(product => (
+                            <Card key={product.id} className="cursor-pointer hover:shadow-lg transition-shadow relative" onClick={() => addToCart(product)}>
+                                {product.stock === 0 && (
+                                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
+                                        <span className="font-bold text-destructive">Out of Stock</span>
+                                    </div>
+                                )}
                                 <CardContent className="p-2">
                                     <Image src={product.imageUrl ?? 'https://placehold.co/150x150.png'} alt={product.name} width={150} height={150} className="w-full rounded-md object-cover" data-ai-hint="product image"/>
                                 </CardContent>
@@ -120,7 +160,7 @@ export default function PosPage() {
                                 <span>${total.toFixed(2)}</span>
                             </div>
                         </div>
-                        <CheckoutDialog total={total} />
+                        <CheckoutDialog total={total} cart={cart} onSuccessfulCheckout={onSuccessfulCheckout} />
                     </CardFooter>
                 </Card>
             </div>
@@ -128,9 +168,50 @@ export default function PosPage() {
     );
 }
 
-function CheckoutDialog({ total }: { total: number }) {
+function CheckoutDialog({ total, cart, onSuccessfulCheckout }: { total: number; cart: CartItem[]; onSuccessfulCheckout: () => void }) {
+    const [isPending, startTransition] = useTransition();
+    const { toast } = useToast();
+    const [open, setOpen] = useState(false);
+
+    // This is a placeholder. In a real app, you'd have a way to select or create a 'POS Customer'.
+    const POS_CLIENT_ID = "1"; 
+
+    const handleConfirmPayment = () => {
+        if (cart.length === 0) return;
+
+        startTransition(async () => {
+            const orderInput = {
+                // Using a default client ID for POS sales.
+                clientId: POS_CLIENT_ID, 
+                orderDate: new Date(),
+                items: cart.map(item => ({
+                    productId: item.id,
+                    quantity: item.quantity,
+                    unitPrice: item.price,
+                })),
+            };
+
+            const result = await createSalesOrder(orderInput);
+
+            if (result.success && result.data) {
+                toast({
+                    title: "Sale Complete",
+                    description: `Order ${result.data.orderNumber} has been created.`,
+                });
+                onSuccessfulCheckout();
+                setOpen(false); // Close the dialog on success
+            } else {
+                toast({
+                    title: "Error",
+                    description: result.error || "Could not complete the sale.",
+                    variant: "destructive",
+                });
+            }
+        });
+    };
+
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button className="w-full mt-4" size="lg" disabled={total <= 0}>Checkout</Button>
             </DialogTrigger>
@@ -160,11 +241,15 @@ function CheckoutDialog({ total }: { total: number }) {
                 </Tabs>
                 <div className="flex justify-end gap-2 mt-4">
                    <DialogClose asChild>
-                       <Button variant="outline">Cancel</Button>
+                       <Button variant="outline" disabled={isPending}>Cancel</Button>
                    </DialogClose>
-                   <Button size="lg">Confirm Payment</Button>
+                   <Button size="lg" onClick={handleConfirmPayment} disabled={isPending}>
+                       {isPending ? "Processing..." : "Confirm Payment"}
+                   </Button>
                 </div>
             </DialogContent>
         </Dialog>
     )
 }
+
+    
