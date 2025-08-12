@@ -89,7 +89,7 @@ The application will be built around four interconnected modules that automate k
 
 ## 6. Technical Architecture Scenarios
 
-This section outlines three potential technology stacks for the backend. The goal is to choose the path that best balances development speed with our core principles of control, reliability, and open-source philosophy.
+This section outlines three potential technology stacks for the backend. The goal is to choose the path that best balances development speed with our core principles of control, reliability, and open-source philosophy. All three scenarios assume the use of **Next.js** for the frontend and **Prisma ORM** for data access, allowing a seamless transition from local **SQLite** development to production **PostgreSQL**.
 
 ### **Scenario A: The "Modular Control" Stack**
 
@@ -99,6 +99,7 @@ This approach uses a set of best-in-class, independent, open-source tools that w
 - **API Layer:** **PostgREST.** A standalone web server that turns our PostgreSQL database directly into a secure, RESTful API. It's extremely lightweight and fast.
 - **Authentication/RBAC:** **Lucia Auth.** An open-source, framework-agnostic authentication library that gives us full control to build our own user management and role-based access control system within Next.js.
 - **File Storage:** **MinIO.** An open-source, S3-compatible object storage server we can self-host for CSV uploads, logos, and backups.
+- **How it Works:** The Next.js app, using Lucia Auth, handles user login and generates a secure JSON Web Token (JWT). For all subsequent data requests, our frontend sends this JWT to the PostgREST server. PostgREST validates the token and uses the `role` claim inside it to enforce database-level permissions for that specific request. This provides a highly secure and decoupled architecture.
 
 *   **Pros:**
     *   **Maximum Control & No Bloat:** We only include the exact functionality we need.
