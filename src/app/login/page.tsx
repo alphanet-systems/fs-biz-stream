@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
+import { CredentialsSignin } from 'next-auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -29,31 +30,33 @@ export default function LoginPage() {
   const handleLogin = async () => {
     setIsLoading(true);
     try {
-      const result = await signIn('credentials', {
+      await signIn('credentials', {
         redirect: false,
         email,
         password,
       });
 
-      if (result?.error) {
-        toast({
-          title: 'Login Failed',
-          description: 'Invalid email or password. Please try again.',
-          variant: 'destructive',
-        });
-      } else if (result?.ok) {
-        toast({
-          title: 'Login Successful',
-          description: "Welcome back!",
-        });
-        router.push('/');
-      }
+      // If signIn doesn't throw, it was successful.
+      toast({
+        title: 'Login Successful',
+        description: "Welcome back!",
+      });
+      router.push('/');
+
     } catch (error) {
-       toast({
-          title: 'An Unexpected Error Occurred',
-          description: 'Please try again later.',
-          variant: 'destructive',
-        });
+       if (error instanceof CredentialsSignin) {
+          toast({
+            title: 'Login Failed',
+            description: 'Invalid email or password. Please try again.',
+            variant: 'destructive',
+          });
+       } else {
+         toast({
+            title: 'An Unexpected Error Occurred',
+            description: 'Please try again later.',
+            variant: 'destructive',
+          });
+       }
     } finally {
         setIsLoading(false);
     }
