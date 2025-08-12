@@ -3,7 +3,6 @@ import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import Credentials from 'next-auth/providers/credentials';
 import prisma from './lib/prisma';
-import type { User } from '@prisma/client';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -28,6 +27,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null;
         }
 
+        // We can return the full user object, NextAuth handles the rest
         return user;
       }
     })
@@ -37,9 +37,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async session({ session, token }) {
-      if (token) {
+      if (token && session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as User['role'];
+        session.user.role = token.role as string;
       }
       return session;
     },

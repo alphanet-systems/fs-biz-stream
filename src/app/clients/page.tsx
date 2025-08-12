@@ -27,10 +27,12 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { type Counterparty, type CounterpartyType } from "@prisma/client";
+import { type Counterparty } from "@prisma/client";
 import { createCounterparty, getCounterparties, exportCounterpartiesToCsv } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+
+type CounterpartyType = "CLIENT" | "VENDOR";
 
 export default function CounterpartiesPage() {
   const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
@@ -128,7 +130,7 @@ export default function CounterpartiesPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      {counterparty.types.map(type => (
+                      {((counterparty.types as unknown) as CounterpartyType[]).map(type => (
                         <Badge key={type} variant={type === 'CLIENT' ? 'default' : 'secondary'}>{type}</Badge>
                       ))}
                     </div>
@@ -278,3 +280,5 @@ function AddCounterpartySheet({ onCounterpartyCreated }: { onCounterpartyCreated
         </Sheet>
     )
 }
+
+    

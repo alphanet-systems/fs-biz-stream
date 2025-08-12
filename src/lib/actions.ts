@@ -15,29 +15,41 @@ type ServerActionResult<T> = {
 // Counterparty Actions
 export async function getCounterparties(type?: 'CLIENT' | 'VENDOR'): Promise<Counterparty[]> {
   try {
-    return await prisma.counterparty.findMany({
+    const counterparties = await prisma.counterparty.findMany({
       where: type ? {
         types: {
-          has: type,
+          contains: type
         }
       } : {},
       orderBy: {
         createdAt: 'desc',
       },
     });
+    // Manually convert the types string to an array for the client
+    return counterparties.map(c => ({...c, types: c.types.split(',') as ('CLIENT'|'VENDOR')[]}));
   } catch (error) {
     console.error('Error fetching counterparties:', error);
     return [];
   }
 }
 
-export async function createCounterparty(data: Omit<Counterparty, 'id' | 'createdAt' | 'updatedAt'>): Promise<ServerActionResult<Counterparty>> {
+type CounterpartyInput = Omit<Counterparty, 'id' | 'createdAt' | 'updatedAt' | 'types'> & {
+    types: ('CLIENT' | 'VENDOR')[];
+};
+
+export async function createCounterparty(data: CounterpartyInput): Promise<ServerActionResult<Counterparty>> {
   try {
-    const newCounterparty = await prisma.counterparty.create({
+    const newCounterpartyData = await prisma.counterparty.create({
       data: {
         ...data,
+        types: data.types.join(','), // Join array into a comma-separated string
       },
     });
+    // Convert the string back to an array for the return value
+    const newCounterparty = {
+        ...newCounterpartyData,
+        types: newCounterpartyData.types.split(',') as ('CLIENT'|'VENDOR')[],
+    };
     revalidatePath('/clients');
     return { success: true, data: newCounterparty };
   } catch (error) {
@@ -104,7 +116,7 @@ export async function createWallet(data: { name: string, balance: number }): Pro
 // Payment Actions
 export async function getPayments(): Promise<(Payment & { counterparty: Counterparty, wallet: Wallet })[]> {
   try {
-    return await prisma.payment.findMany({
+    const payments = await prisma.payment.findMany({
       include: {
         counterparty: true,
         wallet: true,
@@ -113,6 +125,16 @@ export async function getPayments(): Promise<(Payment & { counterparty: Counterp
         date: 'desc',
       },
     });
+
+    // Manually adjust counterparty types from string to array
+    return payments.map(p => ({
+        ...p,
+        counterparty: {
+            ...p.counterparty,
+            types: p.counterparty.types.split(',') as ('CLIENT'|'VENDOR')[]
+        }
+    }));
+
   } catch (error)
  {
     console.error('Error fetching payments:', error);
@@ -164,7 +186,7 @@ export async function createPayment(data: PaymentInput): Promise<ServerActionRes
 // Sales Order Actions
 export async function getSalesOrders(): Promise<(SalesOrder & { counterparty: Counterparty })[]> {
     try {
-        return await prisma.salesOrder.findMany({
+        const orders = await prisma.salesOrder.findMany({
             include: {
                 counterparty: true,
             },
@@ -172,6 +194,13 @@ export async function getSalesOrders(): Promise<(SalesOrder & { counterparty: Co
                 orderDate: 'desc',
             },
         });
+        return orders.map(o => ({
+            ...o,
+            counterparty: {
+                ...o.counterparty,
+                types: o.counterparty.types.split(',') as ('CLIENT'|'VENDOR')[]
+            }
+        }));
     } catch (error) {
         console.error('Error fetching sales orders:', error);
         return [];
@@ -246,7 +275,7 @@ export async function createSalesOrder(input: SalesOrderInput): Promise<ServerAc
 // Purchase Order Actions
 export async function getPurchaseOrders(): Promise<(PurchaseOrder & { counterparty: Counterparty })[]> {
     try {
-        return await prisma.purchaseOrder.findMany({
+        const orders = await prisma.purchaseOrder.findMany({
             include: {
                 counterparty: true,
             },
@@ -254,6 +283,13 @@ export async function getPurchaseOrders(): Promise<(PurchaseOrder & { counterpar
                 orderDate: 'desc',
             },
         });
+        return orders.map(o => ({
+            ...o,
+            counterparty: {
+                ...o.counterparty,
+                types: o.counterparty.types.split(',') as ('CLIENT'|'VENDOR')[]
+            }
+        }));
     } catch (error) {
         console.error('Error fetching purchase orders:', error);
         return [];
@@ -350,8 +386,8 @@ export async function exportCounterpartiesToCsv(): Promise<ServerActionResult<st
     if (counterparties.length === 0) {
       return { success: false, error: "No counterparties to export." };
     }
-    // The AI flow expects a simple array of objects. We need to format the `types` array.
-    const dataForCsv = counterparties.map(c => ({...c, types: c.types.join(', ')}));
+    // The AI flow expects a simple array of objects. We need to format the `types` string.
+    const dataForCsv = counterparties.map(c => ({...c, types: c.types.replace(',', ', ')}));
     const csv = await jsonToCsv({ data: dataForCsv });
     return { success: true, data: csv };
   } catch (error) {
@@ -417,3 +453,5 @@ export async function exportPurchaseOrdersToCsv(): Promise<ServerActionResult<st
     return { success: false, error: 'Failed to export purchase orders to CSV.' };
   }
 }
+
+    
