@@ -1,3 +1,4 @@
+
 import NextAuth, { type CredentialsSignin } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import prisma from '@/lib/prisma';
@@ -13,6 +14,34 @@ export const {
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: 'jwt',
+  },
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "none", // Required for cross-site and iframe contexts
+        path: "/",
+        secure: true, // Required when sameSite is "none"
+      },
+    },
+    callbackUrl: {
+      name: `__Secure-next-auth.callback-url`,
+      options: {
+        sameSite: "none",
+        path: "/",
+        secure: true,
+      },
+    },
+    csrfToken: {
+      name: `__Host-next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "none",
+        path: "/",
+        secure: true,
+      },
+    },
   },
   trustHost: true,
   providers: [
