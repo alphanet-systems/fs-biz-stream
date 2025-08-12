@@ -4,16 +4,11 @@
  * @fileOverview A Genkit flow for converting JSON data to CSV format.
  * 
  * - jsonToCsv - A function that takes a JSON object with a 'data' key (which is an array of objects) and returns a CSV string.
- * - CsvInput - The input type for the jsonToCsv function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-
-export const CsvInputSchema = z.object({
-    data: z.array(z.record(z.any())).describe('An array of JSON objects to convert to CSV.'),
-});
-export type CsvInput = z.infer<typeof CsvInputSchema>;
+import { CsvInputSchema, type CsvInput } from '@/types';
 
 const csvConversionPrompt = ai.definePrompt({
     name: 'csvConversionPrompt',
