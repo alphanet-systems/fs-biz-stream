@@ -28,25 +28,34 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     setIsLoading(true);
-    const result = await signIn('credentials', {
-      redirect: false,
-      email,
-      password,
-    });
-    setIsLoading(false);
+    try {
+      const result = await signIn('credentials', {
+        redirect: false,
+        email,
+        password,
+      });
 
-    if (result?.error) {
-      toast({
-        title: 'Login Failed',
-        description: 'Invalid email or password. Please try again.',
-        variant: 'destructive',
-      });
-    } else if (result?.ok) {
-      toast({
-        title: 'Login Successful',
-        description: "Welcome back!",
-      });
-      router.push('/');
+      if (result?.error) {
+        toast({
+          title: 'Login Failed',
+          description: 'Invalid email or password. Please try again.',
+          variant: 'destructive',
+        });
+      } else if (result?.ok) {
+        toast({
+          title: 'Login Successful',
+          description: "Welcome back!",
+        });
+        router.push('/');
+      }
+    } catch (error) {
+       toast({
+          title: 'An Unexpected Error Occurred',
+          description: 'Please try again later.',
+          variant: 'destructive',
+        });
+    } finally {
+        setIsLoading(false);
     }
   };
 
