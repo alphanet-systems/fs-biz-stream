@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
-import { PlusCircle, Search, File, CheckCircle, XCircle } from "lucide-react";
+import React, { useState, useMemo, useTransition } from "react";
+import { PlusCircle, Search, File, CheckCircle, XCircle, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,27 +22,30 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
-import { clients } from "@/lib/mock-data";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription, SheetClose } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { type Client } from "@/types";
+import { type Client } from "@prisma/client";
+import { createClient, getClients } from "@/lib/actions";
 
 export default function ClientsPage() {
-  const [clientList, setClientList] = useState<Client[]>(clients);
+  const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const handleAddClient = (newClient: Client) => {
-    setClientList(prevList => [newClient, ...prevList]);
-  };
+  React.useEffect(() => {
+    getClients().then(setClients);
+  }, []);
 
-  const filteredClients = clientList.filter(client =>
+  const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  const onClientCreated = (newClient: Client) => {
+    setClients(prev => [newClient, ...prev]);
+  };
 
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">
@@ -58,7 +61,7 @@ export default function ClientsPage() {
                 <File className="h-4 w-4 mr-2" />
                 Export
               </Button>
-              <AddClientSheet onAddClient={handleAddClient} />
+              <AddClientSheet onClientCreated={onClientCreated} />
             </div>
           </div>
           <div className="relative mt-4">
@@ -93,7 +96,7 @@ export default function ClientsPage() {
                   </TableCell>
                   <TableCell className="hidden md:table-cell">{client.phone}</TableCell>
                   <TableCell className="hidden md:table-cell">{client.address}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{client.createdAt}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{new Date(client.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -121,12 +124,13 @@ export default function ClientsPage() {
   );
 }
 
-function AddClientSheet({ onAddClient }: { onAddClient: (client: Client) => void }) {
+function AddClientSheet({ onClientCreated }: { onClientCreated: (client: Client) => void }) {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
     const [open, setOpen] = useState(false);
+    const [isPending, startTransition] = useTransition();
 
     const [isNameValid, setIsNameValid] = useState<boolean | null>(null);
     const [isEmailValid, setIsEmailValid] = useState<boolean | null>(null);
@@ -158,24 +162,25 @@ function AddClientSheet({ onAddClient }: { onAddClient: (client: Client) => void
     const handleSaveClient = () => {
         if (!isFormValid) return;
 
-        const newClient: Client = {
-            id: `c-${Date.now()}`,
-            name,
-            email,
-            phone,
-            address,
-            createdAt: new Date().toISOString().split('T')[0],
-        };
-
-        onAddClient(newClient);
-        
-        toast({
-            title: "Client Saved",
-            description: `${name} has been successfully added to your clients.`,
+        startTransition(async () => {
+          const result = await createClient({ name, email, phone, address });
+          
+          if (result.success && result.data) {
+            onClientCreated(result.data);
+            toast({
+                title: "Client Saved",
+                description: `${result.data.name} has been successfully added.`,
+            });
+            resetForm();
+            setOpen(false);
+          } else {
+             toast({
+                title: "Error",
+                description: result.error || "Could not save the client.",
+                variant: "destructive",
+            });
+          }
         });
-        
-        resetForm();
-        setOpen(false); // Close the sheet
     };
 
     return (
@@ -237,7 +242,9 @@ function AddClientSheet({ onAddClient }: { onAddClient: (client: Client) => void
                 </div>
                 <div className="mt-6 flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSaveClient} disabled={!isFormValid}>Save Client</Button>
+                    <Button onClick={handleSaveClient} disabled={!isFormValid || isPending}>
+                      {isPending ? "Saving..." : "Save Client"}
+                    </Button>
                 </div>
             </SheetContent>
         </Sheet>

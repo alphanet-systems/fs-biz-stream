@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { PlusCircle, Search, File, CheckCircle, XCircle } from "lucide-react";
+import React, { useState, useMemo, useTransition } from "react";
+import { PlusCircle, Search, File, CheckCircle, XCircle, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,8 +22,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
-import { products } from "@/lib/mock-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -31,13 +29,18 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { type Product } from "@/types";
+import { type Product } from "@prisma/client";
+import { createProduct, getProducts } from "@/lib/actions";
 
 export default function InventoryPage() {
-  const [productList, setProductList] = useState<Product[]>(products);
+  const [productList, setProductList] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const handleAddProduct = (newProduct: Product) => {
+  React.useEffect(() => {
+    getProducts().then(setProductList);
+  }, []);
+
+  const onProductCreated = (newProduct: Product) => {
     setProductList(prevList => [newProduct, ...prevList]);
   };
   
@@ -60,7 +63,7 @@ export default function InventoryPage() {
                 <File className="h-4 w-4 mr-2" />
                 Export
               </Button>
-              <AddProductSheet onAddProduct={handleAddProduct}/>
+              <AddProductSheet onProductCreated={onProductCreated}/>
             </div>
           </div>
           <div className="relative mt-4">
@@ -138,13 +141,14 @@ export default function InventoryPage() {
   );
 }
 
-function AddProductSheet({ onAddProduct }: { onAddProduct: (product: Product) => void }) {
+function AddProductSheet({ onProductCreated }: { onProductCreated: (product: Product) => void }) {
     const [name, setName] = useState('');
     const [sku, setSku] = useState('');
     const [stock, setStock] = useState('');
     const [price, setPrice] = useState('');
     const [category, setCategory] = useState('');
     const [open, setOpen] = useState(false);
+    const [isPending, startTransition] = useTransition();
 
     const [isNameValid, setIsNameValid] = useState<boolean | null>(null);
     const [isSkuValid, setIsSkuValid] = useState<boolean | null>(null);
@@ -190,25 +194,32 @@ function AddProductSheet({ onAddProduct }: { onAddProduct: (product: Product) =>
     const handleSaveProduct = () => {
         if (!isFormValid) return;
 
-        const newProduct: Product = {
-            id: `p-${Date.now()}`,
-            name,
-            sku,
-            stock: Number(stock),
-            price: Number(price),
-            category,
-            imageUrl: "https://placehold.co/100x100.png",
-        };
+        startTransition(async () => {
+            const result = await createProduct({
+                name,
+                sku,
+                stock: Number(stock),
+                price: Number(price),
+                category: category || null,
+                imageUrl: "https://placehold.co/100x100.png",
+            });
 
-        onAddProduct(newProduct);
-        
-        toast({
-            title: "Product Saved",
-            description: `${name} has been successfully added to your inventory.`,
+            if (result.success && result.data) {
+                onProductCreated(result.data);
+                toast({
+                    title: "Product Saved",
+                    description: `${result.data.name} has been successfully added.`,
+                });
+                resetForm();
+                setOpen(false);
+            } else {
+                toast({
+                    title: "Error",
+                    description: result.error || "Could not save the product.",
+                    variant: "destructive",
+                });
+            }
         });
-        
-        resetForm();
-        setOpen(false);
     };
 
     return (
@@ -261,7 +272,9 @@ function AddProductSheet({ onAddProduct }: { onAddProduct: (product: Product) =>
                 </div>
                 <div className="mt-6 flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSaveProduct} disabled={!isFormValid}>Save Product</Button>
+                    <Button onClick={handleSaveProduct} disabled={!isFormValid || isPending}>
+                      {isPending ? "Saving..." : "Save Product"}
+                    </Button>
                 </div>
             </SheetContent>
         </Sheet>
