@@ -22,8 +22,9 @@ This file tracks the key features and changes implemented in the BizStream appli
 - **Point of Sale (POS) Integration**: The POS interface is now fully functional, fetching real product data and creating official sales orders that update inventory.
 - **Purchases Module**: Implemented the complete Purchases module, allowing users to create and manage purchase orders for vendors.
 - **Wallet System**: The Payments module has been enhanced with a full Wallet System. Users can now create multiple wallets (e.g., "Bank Account", "Cash Drawer") and every payment transaction is linked to a specific wallet, accurately updating its balance.
+- **Data Portability**: Implemented CSV export functionality for all core data modules: Counterparties, Products, Sales Orders, and Purchase Orders. This is powered by a Genkit AI flow to ensure robust data conversion.
 
 ## Testing & Quality Assurance
 
 - **Test Suite Setup**: Configured a comprehensive testing environment using Jest and React Testing Library.
-- **Core Module Tests**: Wrote and maintained unit and integration tests for all major features, including Counterparties, Inventory, Sales (listing and creation), Purchases (listing and creation), Payments, and the Point of Sale interface. This ensures stability and reliability as the application grows.
+- **Core Module Tests**: Wrote and maintained unit and integration tests for all major features, including Counterparties, Inventory, Sales (listing and creation), Purchases (listing and creation), Payments (with Wallets), and the Point of Sale interface. This ensures stability and reliability as the application grows.

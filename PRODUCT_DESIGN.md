@@ -55,10 +55,10 @@ The application will be built around four interconnected modules that automate k
     - **User:** Can create sales and manage inventory, but cannot access company settings or sensitive financial reports.
 
 ### b. Data Portability (Import/Export)
-- **Requirement:** Users must be able to easily migrate their existing data into BizStream. This is critical for adoption.
+- **Requirement:** Users must be able to easily get their data out of the system. This is critical for data ownership and user trust.
 - **v1 Implementation:**
-    - **CSV Import:** Implement a CSV import feature for `Counterparties` and `Products`. The system will provide a downloadable template file with clear instructions for the required format.
-    - **Full Database Backup:** Provide a feature for the Admin to download a full backup of their entire database in an optimal format (e.g., a `.sql` or `.json` file).
+    - **CSV Export:** Implement a "Export to CSV" feature for all core modules (`Counterparties`, `Products`, `Sales Orders`, and `Purchase Orders`). The system will generate and download a clean CSV file of the requested data.
+    - **Future Considerations:** A CSV import feature and full database backups are planned for future versions to facilitate easy data migration into BizStream.
 
 ### c. First-Time Setup & Configuration
 - **Requirement:** The application must have a clean initial state and guide new users through configuration.
