@@ -93,7 +93,7 @@ describe('PaymentsPage', () => {
     // Check for wallets
     await waitFor(() => {
       expect(screen.getByText('Main Bank Account')).toBeInTheDocument();
-      expect(screen.getByText('$5000.00')).toBeInTheDocument();
+      expect(screen.getByText('$5,000.00')).toBeInTheDocument();
       expect(screen.getByText('Cash Drawer')).toBeInTheDocument();
       expect(screen.getByText('$350.00')).toBeInTheDocument();
     });
@@ -107,10 +107,10 @@ describe('PaymentsPage', () => {
   
   it('opens the add income sheet and creates a new income payment', async () => {
     // This test now needs to handle selecting a wallet
-    mockCreatePayment.mockResolvedValue({ success: true, data: {} as Payment });
-
-    render(<PaymentsPage />);
+    const { rerender } = render(<PaymentsPage />);
     const user = userEvent.setup();
+
+    mockCreatePayment.mockResolvedValue({ success: true, data: {} as Payment });
 
     // Open sheet
     const addIncomeButton = screen.getByRole('button', { name: /add income/i });
@@ -122,18 +122,16 @@ describe('PaymentsPage', () => {
 
     // Fill form
     // Select a wallet
-    const walletSelect = screen.getAllByRole('combobox')[0]; // Wallet is first
-    fireEvent.mouseDown(walletSelect);
+    await user.click(screen.getByRole('button', { name: /select a wallet/i }));
     const mainBankAccountOption = await screen.findByText(/Main Bank Account/);
-    fireEvent.click(mainBankAccountOption);
+    await user.click(mainBankAccountOption);
     
     await user.type(screen.getByLabelText('Amount *'), '500');
     
     // Select a counterparty
-    const counterpartySelect = screen.getAllByRole('combobox')[1];
-    fireEvent.mouseDown(counterpartySelect);
+    await user.click(screen.getByRole('button', { name: /select a counterparty/i }));
     const innovateOption = await screen.findByText('Innovate Inc.');
-    fireEvent.click(innovateOption);
+    await user.click(innovateOption);
 
     await user.type(screen.getByLabelText('Description *'), 'New Income');
 
