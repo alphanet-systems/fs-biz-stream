@@ -82,4 +82,64 @@ The application will be built around four interconnected modules that automate k
 - **Requirement:** All operations involving money and inventory must be transactional. If one part of an operation fails, the entire operation must be rolled back to prevent data inconsistency.
 - **Implementation:** This will be enforced at the database layer using database transactions for all multi-step operations (e.g., Fulfill Sale, Receive Purchase).
 
+### b. Open-Source & Self-Hostable
+- **Requirement:** The entire stack must be based on open-source technologies, be free from severe usage limitations in its free tier, and be deployable to an on-premise server. This ensures long-term viability, control, and cost-effectiveness.
+
+---
+
+## 6. Technical Architecture Scenarios
+
+This section outlines three potential technology stacks for the backend. The goal is to choose the path that best balances development speed with our core principles of control, reliability, and open-source philosophy.
+
+### **Scenario A: The "Modular Control" Stack**
+
+This approach uses a set of best-in-class, independent, open-source tools that we integrate ourselves. It prioritizes control and leanness over an all-in-one solution.
+
+- **Database:** **PostgreSQL.** The industry standard for reliable, open-source relational databases.
+- **API Layer:** **PostgREST.** A standalone web server that turns our PostgreSQL database directly into a secure, RESTful API. It's extremely lightweight and fast.
+- **Authentication/RBAC:** **Lucia Auth.** An open-source, framework-agnostic authentication library that gives us full control to build our own user management and role-based access control system within Next.js.
+- **File Storage:** **MinIO.** An open-source, S3-compatible object storage server we can self-host for CSV uploads, logos, and backups.
+
+*   **Pros:**
+    *   **Maximum Control & No Bloat:** We only include the exact functionality we need.
+    *   **Un-opinionated:** We are not tied to any single platform's way of doing things.
+    *   **Component Swapping:** Each part (auth, storage) is independent and can be replaced in the future if needed.
+*   **Cons:**
+    *   **Highest Initial Integration Effort:** We are responsible for connecting these different services and ensuring they work together seamlessly.
+
+### **Scenario B: The "Integrated BaaS" Stack**
+
+This approach uses a single, open-source Backend-as-a-Service (BaaS) platform that provides multiple services in one package. This prioritizes development speed.
+
+- **Core Platform:** **Appwrite.** An open-source platform that bundles a database, authentication, file storage, and server-side functions into a single product.
+- **Database:** Appwrite can be configured to use a PostgreSQL-compatible database.
+- **API Layer:** Provided automatically by Appwrite.
+- **Authentication/RBAC:** Handled by Appwrite's built-in user management system.
+- **File Storage:** Handled by Appwrite's built-in storage buckets.
+
+*   **Pros:**
+    *   **Fastest Development Speed:** Most of the backend boilerplate is pre-built, letting us focus on frontend features.
+    *   **Simplified Management:** A single platform to deploy and manage.
+    *   **Meets Core Principles:** It is open-source and designed for self-hosting.
+*   **Cons:**
+    *   **Platform Risk:** While open-source, we are still adopting a specific platform's architecture and opinions. We are dependent on its future development and community support.
+    *   **Potential for "BaaS Bloat":** We might not need every feature the platform offers.
+
+### **Scenario C: The "Next.js Full Stack"**
+
+This approach leverages the Next.js framework to its maximum potential, minimizing external backend dependencies beyond the database itself.
+
+- **Database:** **PostgreSQL.**
+- **API Layer:** **Written entirely in Next.js.** We would use Prisma to connect directly to the database from Next.js API Routes and Server Actions. We would write all business logic for every API endpoint ourselves.
+- **Authentication/RBAC:** **NextAuth.js (Auth.js).** The de-facto open-source authentication solution for Next.js. It's highly customizable and has adapters for Prisma, allowing us to build our RBAC system.
+- **File Storage:** Handled by a custom API route in Next.js that would write files to a secure, persistent volume on the server.
+
+*   **Pros:**
+    *   **Single Codebase & Language:** The entire application, both frontend and backend logic, lives in one Next.js repository using TypeScript. This simplifies the development workflow.
+    *   **Excellent Developer Experience:** We stay within the familiar and highly-optimized Next.js ecosystem.
+*   **Cons:**
+    *   **"Reinventing the Wheel":** We would be manually creating an API for our database, a task that PostgREST (Scenario A) or Appwrite (Scenario B) would largely automate.
+    *   **Can Become Monolithic:** As the application grows, having all logic in one place could become complex if not managed carefully.
+---
+
 This document will serve as our guide as we proceed to the next stages of technical design and implementation.
