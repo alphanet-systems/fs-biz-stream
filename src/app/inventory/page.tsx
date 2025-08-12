@@ -141,7 +141,7 @@ export default function InventoryPage() {
                   </TableCell>
                   <TableCell>{product.sku}</TableCell>
                   <TableCell>
-                     <Badge variant={product.stock > 20 ? 'default' : 'destructive'} className={product.stock > 20 ? 'bg-green-500/20 text-green-700' : 'bg-red-500/20 text-red-700'}>
+                     <Badge variant={product.stock > 20 ? 'default' : 'destructive'} className={cn(product.stock > 20 ? 'bg-green-500/20 text-green-700' : product.stock > 0 ? 'bg-yellow-500/20 text-yellow-700' : 'bg-red-500/20 text-red-700')}>
                       {product.stock} in stock
                     </Badge>
                   </TableCell>
@@ -321,5 +321,3 @@ function ValidationMessage({ isValid, message }: { isValid: boolean; message: st
         </div>
     );
 }
-
-    

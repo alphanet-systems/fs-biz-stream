@@ -334,5 +334,3 @@ export async function exportProductsToCsv(): Promise<ServerActionResult<string>>
     return { success: false, error: 'Failed to export products to CSV.' };
   }
 }
-
-    
