@@ -16,6 +16,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Info } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -56,6 +58,16 @@ export default function LoginPage() {
           <CardDescription>Enter your credentials to access your dashboard</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Development Login</AlertTitle>
+            <AlertDescription>
+              <div className="text-xs">
+                <p><span className="font-semibold">Admin:</span> admin@example.com / password</p>
+                <p><span className="font-semibold">User:</span> user@example.com / password</p>
+              </div>
+            </AlertDescription>
+          </Alert>
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
             <Input
