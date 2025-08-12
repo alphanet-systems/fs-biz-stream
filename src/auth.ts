@@ -1,4 +1,6 @@
 
+'use server';
+
 import NextAuth, { CredentialsSignin } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import prisma from './lib/prisma';
@@ -19,22 +21,42 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
+        console.log('[Auth] Authorize function started.');
         if (!credentials?.email || !credentials.password) {
-          throw new CredentialsSignin("Missing email or password.");
+          console.error('[Auth] Missing email or password.');
+          throw new CredentialsSignin('Missing email or password.');
         }
 
         const email = credentials.email as string;
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
+        const password = credentials.password as string;
+        console.log(`[Auth] Attempting to log in with email: ${email}`);
 
-        if (!user || user.password !== credentials.password) {
-          // In a real app, hash and compare passwords.
-          throw new CredentialsSignin("Invalid email or password.");
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email },
+          });
+
+          if (!user) {
+            console.error(`[Auth] No user found for email: ${email}`);
+            return null; // Triggers login failure
+          }
+          console.log(`[Auth] Found user: ${user.name}`);
+
+          // In a real app, always hash and compare passwords!
+          if (user.password !== password) {
+            console.error(`[Auth] Invalid password for user: ${email}`);
+            return null; // Triggers login failure
+          }
+
+          console.log(`[Auth] Password verified for user: ${email}. Login successful.`);
+          // The user object will be encoded in the JWT.
+          return user;
+        } catch (error) {
+            console.error('[Auth] A database error occurred:', error);
+            // Throwing the error will prevent login and log the issue.
+            throw new Error('Database error during authorization.');
         }
-        
-        // The user object will be encoded in the JWT.
-        return user;
+
       },
     }),
   ],
@@ -58,7 +80,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   pages: {
     signIn: '/login',
-    // We handle errors on the login page now, so a separate error page is not needed.
-    // error: '/login' 
   },
 });
