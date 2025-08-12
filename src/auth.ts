@@ -5,12 +5,7 @@ import prisma from './lib/prisma';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { type User } from '@prisma/client';
 
-export const { 
-  handlers, 
-  auth, 
-  signIn, 
-  signOut 
-} = NextAuth({
+const authConfig = {
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: 'jwt',
@@ -35,7 +30,6 @@ export const {
         });
 
         if (!user) {
-          // console.log("No user found with that email.");
           throw new CredentialsSignin("Invalid email or password.");
         }
         
@@ -46,7 +40,6 @@ export const {
           return user;
         }
         
-        // console.log("Passwords do not match.");
         throw new CredentialsSignin("Invalid email or password.");
       },
     }),
@@ -69,7 +62,8 @@ export const {
   },
   pages: {
     signIn: '/login',
-    error: '/login',
   },
   debug: process.env.NODE_ENV === "development",
-});
+};
+
+export const { handlers: { GET, POST }, auth, signIn, signOut } = NextAuth(authConfig);
