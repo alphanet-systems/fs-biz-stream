@@ -24,7 +24,7 @@ export const {
       },
       async authorize(credentials: any) {
         if (!credentials?.email || !credentials.password) {
-          throw new CredentialsSignin('Missing email or password.');
+          return null;
         }
 
         const email = credentials.email as string;
@@ -35,7 +35,8 @@ export const {
         });
 
         if (!user) {
-          throw new CredentialsSignin("Invalid email or password.");
+          console.error("No user found with that email.");
+          return null;
         }
         
         // In a real app, you MUST hash passwords.
@@ -45,7 +46,8 @@ export const {
           return user;
         }
         
-        throw new CredentialsSignin("Invalid email or password.");
+        console.error("Passwords do not match.");
+        return null;
       },
     }),
   ],
