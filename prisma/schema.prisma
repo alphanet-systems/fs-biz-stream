@@ -1,11 +1,9 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
+  engineType = "binary"
 }
 
 datasource db {
@@ -13,16 +11,23 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+enum Role {
+  ADMIN
+  USER
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String    @unique
   emailVerified DateTime?
-  image         String?
-  password      String?
+  password      String // In a real app, this should be a hash!
   role          String    @default("USER") // Changed from Role enum to String
+  image         String?
   accounts      Account[]
   sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Account {
@@ -41,6 +46,9 @@ model Account {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([provider, providerAccountId])
 }
 
@@ -50,120 +58,123 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model VerificationToken {
   identifier String
-  token      String   @unique
+  token      String
   expires    DateTime
 
   @@unique([identifier, token])
 }
 
+// BizStream specific models
+
 model Counterparty {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  email     String    @unique
+  email     String   @unique
   phone     String?
   address   String?
-  types     String // Storing as comma-separated string: e.g., "CLIENT,VENDOR"
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  payments  Payment[]
+  types     String // Comma-separated values like "CLIENT,VENDOR"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   salesOrders SalesOrder[]
   purchaseOrders PurchaseOrder[]
+  payments Payment[]
 }
 
 model Product {
-  id        String    @id @default(cuid())
-  name      String
-  sku       String    @unique
-  category  String?
-  stock     Int
-  price     Float
-  imageUrl  String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  salesOrderItems SalesOrderItem[]
+  id                 String               @id @default(cuid())
+  name               String
+  sku                String               @unique
+  category           String?
+  stock              Int
+  price              Float
+  imageUrl           String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  salesOrderItems    SalesOrderItem[]
   purchaseOrderItems PurchaseOrderItem[]
 }
 
 model SalesOrder {
-  id        String    @id @default(cuid())
-  orderNumber String  @unique
+  id          String           @id @default(cuid())
+  orderNumber String           @unique
   counterpartyId String
-  orderDate DateTime
-  status    String
-  subtotal  Float
-  tax       Float
-  total     Float
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  counterparty Counterparty @relation(fields: [counterpartyId], references: [id])
-  items     SalesOrderItem[]
+  counterparty Counterparty     @relation(fields: [counterpartyId], references: [id])
+  orderDate   DateTime
+  status      String // e.g., "Pending", "Fulfilled", "Cancelled"
+  subtotal    Float
+  tax         Float
+  total       Float
+  items       SalesOrderItem[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 model SalesOrderItem {
-  id          String   @id @default(cuid())
-  salesOrderId String
+  id          String     @id @default(cuid())
+  orderId     String
+  order       SalesOrder @relation(fields: [orderId], references: [id])
   productId   String
+  product     Product    @relation(fields: [productId], references: [id])
   quantity    Int
   unitPrice   Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  salesOrder  SalesOrder @relation(fields: [salesOrderId], references: [id])
-  product     Product    @relation(fields: [productId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model PurchaseOrder {
-  id             String    @id @default(cuid())
-  orderNumber    String    @unique
-  counterpartyId String
+  id             String                @id @default(cuid())
+  orderNumber    String                @unique
+  counterpartyId    String
+  counterparty      Counterparty          @relation(fields: [counterpartyId], references: [id])
   orderDate      DateTime
-  status         String
+  status         String // e.g., "Pending", "Received", "Cancelled"
   subtotal       Float
   tax            Float
   total          Float
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  counterparty   Counterparty @relation(fields: [counterpartyId], references: [id])
   items          PurchaseOrderItem[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 }
 
 model PurchaseOrderItem {
-  id              String   @id @default(cuid())
-  purchaseOrderId String
-  productId       String
-  quantity        Int
-  unitPrice       Float
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-  product         Product       @relation(fields: [productId], references: [id])
+  id          String        @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id])
+  productId   String
+  product     Product       @relation(fields: [productId], references: [id])
+  quantity    Int
+  unitPrice   Float
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
 model Payment {
-  id        String    @id @default(cuid())
-  date      DateTime
-  amount    Float
-  type      String
-  status    String
-  description String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id String @id @default(cuid())
+  date DateTime
   counterpartyId String
   counterparty Counterparty @relation(fields: [counterpartyId], references: [id])
-  walletId  String
-  wallet    Wallet @relation(fields: [walletId], references: [id])
+  description String?
+  amount Float // Positive for income, negative for expenses
+  type String // e.g., "Bank Transfer", "Cash", "Card"
+  status String // e.g., "Received", "Sent"
+  walletId String
+  wallet Wallet @relation(fields: [walletId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Wallet {
-  id        String    @id @default(cuid())
-  name      String
-  balance   Float
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  payments  Payment[]
+    id String @id @default(cuid())
+    name String @unique
+    balance Float
+    payments Payment[]
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 }
-
-    
