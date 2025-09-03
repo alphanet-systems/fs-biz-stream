@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
-import { PlusCircle, Search, File, FileText, MoreHorizontal } from "lucide-react";
+import { PlusCircle, Search, File, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type PurchaseOrder, type Counterparty } from "@prisma/client";
-import { getPurchaseOrders, exportPurchaseOrdersToCsv } from "@/lib/actions";
+import { getPurchaseOrders, exportToCsv } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 
 type PurchaseOrderWithCounterparty = PurchaseOrder & { counterparty: Counterparty };
@@ -56,7 +56,7 @@ export default function PurchasesPage() {
   
   const handleExport = () => {
     startExportTransition(async () => {
-      const result = await exportPurchaseOrdersToCsv();
+      const result = await exportToCsv('purchase-orders');
       if (result.success && result.data) {
         const blob = new Blob([result.data], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');

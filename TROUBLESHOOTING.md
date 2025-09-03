@@ -148,5 +148,3 @@ This document outlines solutions to common errors that may occur during the init
   ```
   
 These configuration changes work together to make NextAuth.js fully functional within the security constraints of a proxied, iframe-based cloud development environment.
-
-    

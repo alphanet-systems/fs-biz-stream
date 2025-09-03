@@ -1,5 +1,5 @@
 
-import NextAuth, { type CredentialsSignin } from 'next-auth';
+import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import prisma from '@/lib/prisma';
 import { PrismaAdapter } from '@auth/prisma-adapter';
@@ -52,11 +52,7 @@ export const {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        console.log("--- Authorize Function Triggered ---");
-        console.log("Received credentials from form:", credentials);
-
         if (!credentials?.email || !credentials?.password) {
-          console.error("Credentials missing email or password.");
           return null;
         }
         
@@ -64,36 +60,20 @@ export const {
         const password = credentials.password as string;
 
         try {
-          // 1. Find the user in the database
-          console.log(`Searching for user with email: '${credentials.email}'`);
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email as string },
+            where: { email: email },
           });
 
           if (!user) {
-            console.error("DATABASE_SEARCH: User not found in database.");
-            return null; // Stop here if user doesn't exist
+            return null;
           }
 
-          console.log("DATABASE_SEARCH: Found user:", user);
-
-          // 2. Compare the provided password with the one in the database
-          console.log("--- Password Comparison ---");
-          console.log(`Password from form: '${credentials.password}'`);
-          console.log(`Password from DB:   '${user.password}'`);
-
-          const passwordsMatch = user.password === credentials.password;
-
-          console.log(`Do passwords match? ${passwordsMatch}`);
-          console.log("--------------------------");
-
+          const passwordsMatch = user.password === password;
 
           if (passwordsMatch) {
-            console.log("SUCCESS: Passwords match. Returning user.");
-            return user; // Success!
+            return user;
           } else {
-            console.error("FAILURE: Passwords do not match.");
-            return null; // Passwords didn't match
+            return null;
           }
         } catch (error) {
           console.error("An unexpected error occurred during authorization:", error);
@@ -103,17 +83,19 @@ export const {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }: { token: any, user: any }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.role = (user as User).role;
+        token.companyName = (user as User).companyName;
       }
       return token;
     },
-    async session({ session, token }: { session: any, token: any }) {
+    async session({ session, token }) {
       if (token && session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
+        session.user.id = token.id;
+        session.user.role = token.role;
+        session.user.companyName = token.companyName;
       }
       return session;
     },
@@ -123,5 +105,3 @@ export const {
   },
   debug: process.env.NODE_ENV === "development",
 });
-
-    

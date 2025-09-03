@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useTransition } from "react";
-import { PlusCircle, Search, File, Upload, MoreHorizontal } from "lucide-react";
+import { PlusCircle, Search, File, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,16 +23,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { type Counterparty } from "@prisma/client";
-import { createCounterparty, getCounterparties, exportCounterpartiesToCsv, importCounterpartiesFromCsv } from "@/lib/actions";
+import { createCounterparty, getCounterparties, exportToCsv } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import Papa from "papaparse";
+import { ImportDialog } from "@/components/ImportDialog";
 
 type CounterpartyType = "CLIENT" | "VENDOR";
 
@@ -61,7 +59,7 @@ export default function CounterpartiesPage() {
 
   const handleExport = () => {
     startExportTransition(async () => {
-      const result = await exportCounterpartiesToCsv();
+      const result = await exportToCsv('counterparties');
       if (result.success && result.data) {
         const blob = new Blob([result.data], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
@@ -96,7 +94,7 @@ export default function CounterpartiesPage() {
               <CardDescription>Manage your clients and vendors.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <ImportDialog onImportSuccess={fetchCounterparties} />
+              <ImportDialog importType="counterparties" onImportSuccess={fetchCounterparties} />
               <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
                 <File className="h-4 w-4 mr-2" />
                 {isExporting ? 'Exporting...' : 'Export'}
@@ -137,7 +135,7 @@ export default function CounterpartiesPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      {((counterparty.types as unknown) as CounterpartyType[]).map(type => (
+                      {counterparty.types.map(type => (
                         <Badge key={type} variant={type === 'CLIENT' ? 'default' : 'secondary'}>{type}</Badge>
                       ))}
                     </div>
@@ -285,88 +283,5 @@ function AddCounterpartySheet({ onCounterpartyCreated }: { onCounterpartyCreated
                 </div>
             </SheetContent>
         </Sheet>
-    )
-}
-
-function ImportDialog({ onImportSuccess }: { onImportSuccess: () => void }) {
-    const [file, setFile] = useState<File | null>(null);
-    const [open, setOpen] = useState(false);
-    const [isImporting, startImportTransition] = useTransition();
-    const { toast } = useToast();
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            setFile(event.target.files[0]);
-        }
-    };
-
-    const handleImport = () => {
-        if (!file) return;
-
-        startImportTransition(() => {
-            Papa.parse(file, {
-                header: false,
-                skipEmptyLines: true,
-                complete: async (results) => {
-                    const csvString = Papa.unparse(results.data);
-                    const response = await importCounterpartiesFromCsv(csvString);
-
-                    if (response.success) {
-                        toast({
-                            title: "Import Successful",
-                            description: `${response.data?.count || 0} counterparties have been imported.`,
-                        });
-                        onImportSuccess();
-                        setOpen(false);
-                        setFile(null);
-                    } else {
-                        toast({
-                            title: "Import Failed",
-                            description: response.error || "An unknown error occurred.",
-                            variant: "destructive",
-                        });
-                    }
-                },
-                error: (error) => {
-                    toast({
-                        title: "Error Parsing File",
-                        description: error.message,
-                        variant: "destructive",
-                    });
-                }
-            });
-        });
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Import Counterparties from CSV</DialogTitle>
-                    <DialogDescription>
-                        Select a CSV file to import. The file should have the following columns in order: 
-                        `name`, `email`, `phone`, `address`, `types`. The `types` column should contain `CLIENT`, `VENDOR`, or `CLIENT,VENDOR`.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="csv-file">CSV File</Label>
-                        <Input id="csv-file" type="file" accept=".csv" onChange={handleFileChange} />
-                    </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button onClick={handleImport} disabled={!file || isImporting}>
-                        {isImporting ? "Importing..." : "Run Import"}
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
     )
 }

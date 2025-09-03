@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useTransition } from "react";
-import { PlusCircle, Search, File, CheckCircle, XCircle, MoreHorizontal, Upload } from "lucide-react";
+import { PlusCircle, Search, File, CheckCircle, XCircle, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
@@ -31,8 +30,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { type Product } from "@prisma/client";
-import { createProduct, getProducts, exportProductsToCsv, importProductsFromCsv } from "@/lib/actions";
-import Papa from 'papaparse';
+import { createProduct, getProducts, exportToCsv } from "@/lib/actions";
+import { ImportDialog } from "@/components/ImportDialog";
 
 export default function InventoryPage() {
   const [productList, setProductList] = useState<Product[]>([]);
@@ -59,7 +58,7 @@ export default function InventoryPage() {
   
   const handleExport = () => {
     startExportTransition(async () => {
-      const result = await exportProductsToCsv();
+      const result = await exportToCsv('products');
       if (result.success && result.data) {
         // Create a blob from the CSV string
         const blob = new Blob([result.data], { type: 'text/csv;charset=utf-8;' });
@@ -97,7 +96,7 @@ export default function InventoryPage() {
               <CardDescription>Manage your products and their stock levels.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <ImportDialog onImportSuccess={fetchProducts} />
+              <ImportDialog importType="products" onImportSuccess={fetchProducts} />
               <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
                 <File className="h-4 w-4 mr-2" />
                 {isExporting ? 'Exporting...' : 'Export'}
@@ -327,88 +326,4 @@ function ValidationMessage({ isValid, message }: { isValid: boolean; message: st
             <p>{message}</p>
         </div>
     );
-}
-
-function ImportDialog({ onImportSuccess }: { onImportSuccess: () => void }) {
-    const [file, setFile] = useState<File | null>(null);
-    const [open, setOpen] = useState(false);
-    const [isImporting, startImportTransition] = useTransition();
-    const { toast } = useToast();
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            setFile(event.target.files[0]);
-        }
-    };
-
-    const handleImport = () => {
-        if (!file) return;
-
-        startImportTransition(() => {
-            Papa.parse(file, {
-                header: false,
-                skipEmptyLines: true,
-                complete: async (results) => {
-                    // Convert array of arrays to CSV string
-                    const csvString = Papa.unparse(results.data);
-                    const response = await importProductsFromCsv(csvString);
-
-                    if (response.success) {
-                        toast({
-                            title: "Import Successful",
-                            description: `${response.data?.count || 0} products have been imported.`,
-                        });
-                        onImportSuccess();
-                        setOpen(false);
-                        setFile(null);
-                    } else {
-                        toast({
-                            title: "Import Failed",
-                            description: response.error || "An unknown error occurred.",
-                            variant: "destructive",
-                        });
-                    }
-                },
-                error: (error) => {
-                    toast({
-                        title: "Error Parsing File",
-                        description: error.message,
-                        variant: "destructive",
-                    });
-                }
-            });
-        });
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Import Products from CSV</DialogTitle>
-                    <DialogDescription>
-                        Select a CSV file to import. The file should have the following columns in order: 
-                        `name`, `sku`, `category`, `price`, `stock`.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="csv-file">CSV File</Label>
-                        <Input id="csv-file" type="file" accept=".csv" onChange={handleFileChange} />
-                    </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button onClick={handleImport} disabled={!file || isImporting}>
-                        {isImporting ? "Importing..." : "Run Import"}
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    )
 }

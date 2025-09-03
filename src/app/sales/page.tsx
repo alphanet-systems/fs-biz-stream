@@ -27,7 +27,7 @@ import { MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type SalesOrder, type Counterparty } from "@prisma/client";
-import { getSalesOrders, exportSalesOrdersToCsv } from "@/lib/actions";
+import { getSalesOrders, exportToCsv } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 
 type SalesOrderWithCounterparty = SalesOrder & { counterparty: Counterparty };
@@ -56,7 +56,7 @@ export default function SalesPage() {
 
   const handleExport = () => {
     startExportTransition(async () => {
-      const result = await exportSalesOrdersToCsv();
+      const result = await exportToCsv('sales-orders');
       if (result.success && result.data) {
         const blob = new Blob([result.data], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');

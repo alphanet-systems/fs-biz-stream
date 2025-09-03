@@ -55,16 +55,18 @@ The application will be built around four interconnected modules that automate k
     - **User:** Can create sales and manage inventory, but cannot access company settings or sensitive financial reports.
 
 ### b. Data Portability (Import/Export)
-- **Requirement:** Users must be able to easily get their data out of the system. This is critical for data ownership and user trust.
+- **Requirement:** Users must be able to easily get their data into and out of the system. This is critical for data ownership and user trust.
 - **v1 Implementation:**
+    - **CSV Template Download:** For each importable module (e.g., Products, Counterparties), the user can download a pre-formatted CSV template file.
+    - **CSV Import:** The user can upload their filled-out CSV template. An AI-powered flow will parse the data and create the corresponding records in the database.
     - **CSV Export:** Implement a "Export to CSV" feature for all core modules (`Counterparties`, `Products`, `Sales Orders`, and `Purchase Orders`). The system will generate and download a clean CSV file of the requested data.
-    - **Future Considerations:** A CSV import feature and full database backups are planned for future versions to facilitate easy data migration into BizStream.
 
 ### c. First-Time Setup & Configuration
 - **Requirement:** The application must have a clean initial state and guide new users through configuration.
 - **v1 Implementation:** A one-time **Setup Wizard** will launch for the first Admin user to:
     - Enter company details (Name, Address, VAT number, etc.).
     - Configure initial "Wallets".
+    - **Import existing data** for Products and Counterparties using the new CSV import system.
     - Set the starting numbers and prefixes for documents like invoices and sales orders (e.g., `INV-2024-101`).
 
 ### d. PDF Invoice Templating
