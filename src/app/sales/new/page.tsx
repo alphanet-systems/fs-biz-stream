@@ -56,6 +56,7 @@ export default function NewSalePage() {
   const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<
     string | undefined
   >();
+  const [generateInvoice, setGenerateInvoice] = useState(false);
   const [orderDate, setOrderDate] = useState(
     new Date().toISOString().substring(0, 10)
   );
@@ -129,6 +130,7 @@ export default function NewSalePage() {
       const orderInput = {
         counterpartyId: selectedCounterpartyId,
         orderDate: new Date(orderDate),
+        generateInvoice,
         items: lineItems.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -283,7 +285,11 @@ export default function NewSalePage() {
               </TableRow>
             </TableFooter>
           </Table>
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+                <Checkbox id="generate-invoice" checked={generateInvoice} onCheckedChange={(checked) => setGenerateInvoice(!!checked)} />
+                <Label htmlFor="generate-invoice">Generate Invoice for this Sale</Label>
+            </div>
             <div className="w-full max-w-xs space-y-2">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>

@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import { type Counterparty, type Product, type Payment, type SalesOrder, type PurchaseOrder, type Wallet } from '@prisma/client';
+import { type Counterparty, type Product, type Payment, type SalesOrder, type PurchaseOrder, type Wallet, type Invoice } from '@prisma/client';
 import { jsonToCsv } from '@/ai/flows/export-flow';
 
 type ServerActionResult<T> = {
@@ -210,6 +210,7 @@ export async function getSalesOrders(): Promise<(SalesOrder & { counterparty: Co
 type SalesOrderInput = {
     counterpartyId: string;
     orderDate: Date;
+    generateInvoice: boolean;
     items: {
         productId: string;
         quantity: number;
@@ -233,6 +234,7 @@ export async function createSalesOrder(input: SalesOrderInput): Promise<ServerAc
                     orderDate: input.orderDate,
                     orderNumber: `SO-${Date.now().toString().slice(-6)}`,
                     status: 'Pending',
+                    generateInvoice: input.generateInvoice,
                     subtotal,
                     tax,
                     total,
@@ -258,10 +260,28 @@ export async function createSalesOrder(input: SalesOrderInput): Promise<ServerAc
                 });
             }
 
+            // 4. If requested, create an invoice
+            if (order.generateInvoice) {
+                const issueDate = new Date();
+                const dueDate = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000); // Due in 30 days
+                await tx.invoice.create({
+                    data: {
+                        invoiceNumber: `INV-${order.orderNumber}`,
+                        issueDate,
+                        dueDate,
+                        status: 'Draft',
+                        total: order.total,
+                        salesOrderId: order.id,
+                        counterpartyId: order.counterpartyId
+                    }
+                });
+            }
+
             return order;
         });
 
         revalidatePath('/sales');
+        revalidatePath('/invoices');
         revalidatePath('/inventory'); // Revalidate inventory to show new stock levels
         revalidatePath('/pos'); // Revalidate POS to show new stock levels
         return { success: true, data: newSalesOrder };
@@ -343,6 +363,63 @@ export async function createPurchaseOrder(input: PurchaseOrderInput): Promise<Se
     } catch (error) {
         console.error('Error creating purchase order:', error);
         return { success: false, error: 'Failed to create purchase order.' };
+    }
+}
+
+// Invoice Actions
+export async function getInvoices(): Promise<(Invoice & { counterparty: Counterparty })[]> {
+    try {
+        const invoices = await prisma.invoice.findMany({
+            include: {
+                counterparty: true,
+            },
+            orderBy: {
+                issueDate: 'desc',
+            },
+        });
+        return invoices.map(i => ({
+            ...i,
+            counterparty: {
+                ...i.counterparty,
+                types: i.counterparty.types.split(',') as ('CLIENT'|'VENDOR')[]
+            }
+        }));
+    } catch (error) {
+        console.error('Error fetching invoices:', error);
+        return [];
+    }
+}
+
+export async function getInvoiceById(id: string): Promise<(Invoice & { salesOrder: SalesOrder & { items: (SalesOrderItem & { product: Product })[] }, counterparty: Counterparty }) | null> {
+    try {
+        const invoice = await prisma.invoice.findUnique({
+            where: { id },
+            include: {
+                counterparty: true,
+                salesOrder: {
+                    include: {
+                        items: {
+                            include: {
+                                product: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        if (!invoice) return null;
+
+        return {
+            ...invoice,
+            counterparty: {
+                ...invoice.counterparty,
+                types: invoice.counterparty.types.split(',') as ('CLIENT'|'VENDOR')[]
+            }
+        };
+
+    } catch (error) {
+        console.error(`Error fetching invoice ${id}:`, error);
+        return null;
     }
 }
 
@@ -453,5 +530,3 @@ export async function exportPurchaseOrdersToCsv(): Promise<ServerActionResult<st
     return { success: false, error: 'Failed to export purchase orders to CSV.' };
   }
 }
-
-    
