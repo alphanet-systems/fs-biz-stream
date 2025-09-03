@@ -120,7 +120,7 @@ export default function NewSalePage() {
     (acc, item) => acc + item.quantity * item.unitPrice,
     0
   );
-  const tax = subtotal * 0.1; // 10% tax
+  const tax = subtotal * 0.20; // 20% VAT
   const total = subtotal + tax;
 
   const handleCreateOrder = () => {
@@ -296,7 +296,7 @@ export default function NewSalePage() {
                 <span>${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax (10%)</span>
+                <span className="text-muted-foreground">VAT (20%)</span>
                 <span>${tax.toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-bold text-lg">

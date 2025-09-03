@@ -224,7 +224,7 @@ export async function createSalesOrder(input: SalesOrderInput): Promise<ServerAc
         const newSalesOrder = await prisma.$transaction(async (tx) => {
             // 1. Calculate totals
             const subtotal = input.items.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
-            const tax = subtotal * 0.10; // 10% tax
+            const tax = subtotal * 0.20; // 20% VAT
             const total = subtotal + tax;
 
             // 2. Create the SalesOrder
@@ -330,7 +330,7 @@ export async function createPurchaseOrder(input: PurchaseOrderInput): Promise<Se
      try {
         const newPurchaseOrder = await prisma.$transaction(async (tx) => {
             const subtotal = input.items.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
-            const tax = subtotal * 0.10; // 10% tax
+            const tax = subtotal * 0.20; // 20% VAT
             const total = subtotal + tax;
 
             const order = await tx.purchaseOrder.create({

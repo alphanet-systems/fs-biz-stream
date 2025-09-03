@@ -76,7 +76,7 @@ export default function PosPage() {
     }
 
     const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    const tax = subtotal * 0.1;
+    const tax = subtotal * 0.20;
     const total = subtotal + tax;
     
     const filteredProducts = products.filter(product => 
@@ -157,7 +157,7 @@ export default function PosPage() {
                                 <span>${subtotal.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Tax (10%)</span>
+                                <span className="text-muted-foreground">VAT (20%)</span>
                                 <span>${tax.toFixed(2)}</span>
                             </div>
                             <Separator/>

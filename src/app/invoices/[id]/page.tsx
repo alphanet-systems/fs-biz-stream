@@ -151,7 +151,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                             <span>${salesOrder.subtotal.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Tax (10%)</span>
+                            <span className="text-muted-foreground">VAT (20%)</span>
                             <span>${salesOrder.tax.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between font-bold text-lg border-t pt-2">
