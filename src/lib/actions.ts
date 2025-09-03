@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
 import { type Counterparty, type Product, type Payment, type SalesOrder, type PurchaseOrder, type Wallet, type Invoice } from '@prisma/client';
 import { jsonToCsv } from '@/ai/flows/export-flow';
+import { csvToJson } from '@/ai/flows/csv-to-json-flow';
 
 type ServerActionResult<T> = {
   success: boolean;
@@ -528,5 +529,86 @@ export async function exportPurchaseOrdersToCsv(): Promise<ServerActionResult<st
   } catch (error) {
     console.error('Error exporting purchase orders:', error);
     return { success: false, error: 'Failed to export purchase orders to CSV.' };
+  }
+}
+
+
+// Import Actions
+export async function importProductsFromCsv(csvString: string): Promise<ServerActionResult<{ count: number }>> {
+  try {
+    const jsonResult = await csvToJson({
+      csv: csvString,
+      fields: {
+        name: { type: 'string', description: 'The name of the product.' },
+        sku: { type: 'string', description: 'The Stock Keeping Unit.' },
+        category: { type: 'string', description: 'The product category.', optional: true },
+        price: { type: 'number', description: 'The price of the product.' },
+        stock: { type: 'number', description: 'The available stock quantity.' },
+      },
+    });
+
+    if (!jsonResult || !Array.isArray(jsonResult)) {
+        return { success: false, error: 'AI parsing failed to return a valid array.' };
+    }
+
+    const productsToCreate = jsonResult.map((p: any) => ({
+      name: p.name,
+      sku: p.sku,
+      category: p.category || null,
+      price: typeof p.price === 'number' ? p.price : parseFloat(p.price || '0'),
+      stock: typeof p.stock === 'number' ? p.stock : parseInt(p.stock || '0', 10),
+      imageUrl: 'https://placehold.co/100x100.png', // Default image
+    }));
+    
+    const result = await prisma.product.createMany({
+      data: productsToCreate,
+      skipDuplicates: true, // Skip if a product with the same SKU already exists
+    });
+
+    revalidatePath('/inventory');
+    return { success: true, data: { count: result.count } };
+  } catch (error) {
+    console.error('Error importing products:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during import.';
+    return { success: false, error: `Failed to import products. ${errorMessage}` };
+  }
+}
+
+export async function importCounterpartiesFromCsv(csvString: string): Promise<ServerActionResult<{ count: number }>> {
+  try {
+    const jsonResult = await csvToJson({
+        csv: csvString,
+        fields: {
+            name: { type: 'string', description: 'The name of the person or company.' },
+            email: { type: 'string', description: 'The email address.' },
+            phone: { type: 'string', description: 'The phone number.', optional: true },
+            address: { type: 'string', description: 'The physical address.', optional: true },
+            types: { type: 'string', description: "A comma-separated list of types, e.g., 'CLIENT,VENDOR' or 'CLIENT'." },
+        },
+    });
+
+    if (!jsonResult || !Array.isArray(jsonResult)) {
+        return { success: false, error: 'AI parsing failed to return a valid array.' };
+    }
+    
+    const counterpartiesToCreate = jsonResult.map((c: any) => ({
+        name: c.name,
+        email: c.email,
+        phone: c.phone || null,
+        address: c.address || null,
+        types: c.types.toUpperCase().split(',').map((s:string) => s.trim()).filter((t:string) => t === 'CLIENT' || t === 'VENDOR').join(',') || 'CLIENT',
+    }));
+
+    const result = await prisma.counterparty.createMany({
+        data: counterpartiesToCreate,
+        skipDuplicates: true, // Skip if a counterparty with the same email already exists
+    });
+
+    revalidatePath('/clients');
+    return { success: true, data: { count: result.count } };
+  } catch (error) {
+    console.error('Error importing counterparties:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during import.';
+    return { success: false, error: `Failed to import counterparties. ${errorMessage}` };
   }
 }
