@@ -1,12 +1,31 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider        = "prisma-client-js"
+  // The following setting is required for Firebase Studio
   binaryTargets   = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
 }
 
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String?         @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String          @default("USER") // e.g., 'ADMIN', 'USER'
+  accounts      Account[]
+  sessions      Session[]
+  // Relation to SalesOrder
+  salesOrders   SalesOrder[]
+  // Relation to PurchaseOrder
+  purchaseOrders PurchaseOrder[]
 }
 
 model Account {
@@ -36,18 +55,6 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  password      String?
-  image         String?
-  role          String    @default("USER")
-  accounts      Account[]
-  sessions      Session[]
-}
-
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -56,123 +63,163 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model Product {
-  id             String                @id @default(cuid())
-  name           String
-  sku            String                @unique
-  category       String?
-  stock          Int
-  price          Float
-  imageUrl       String?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  salesOrderItems SalesOrderItem[]
-  purchaseOrderItems PurchaseOrderItem[]
-}
-
+// Represents clients and vendors
 model Counterparty {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
   phone     String?
   address   String?
-  types     String // Comma-separated values like "CLIENT,VENDOR"
+  // Comma-separated list e.g., "CLIENT,VENDOR"
+  types     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  salesOrders SalesOrder[]
+
+  salesOrders   SalesOrder[]
   purchaseOrders PurchaseOrder[]
-  payments  Payment[]
-  invoices  Invoice[]
+  payments      Payment[]
+  invoices      Invoice[]
 }
 
+// Represents products or services for sale
+model Product {
+  id        String   @id @default(cuid())
+  name      String
+  sku       String   @unique
+  category  String?
+  stock     Int
+  price     Float
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  salesOrderItems   SalesOrderItem[]
+  purchaseOrderItems PurchaseOrderItem[]
+}
+
+// Represents a sales order
 model SalesOrder {
-  id             String        @id @default(cuid())
-  orderNumber    String        @unique
-  counterpartyId String
-  counterparty   Counterparty  @relation(fields: [counterpartyId], references: [id])
+  id             String      @id @default(cuid())
+  orderNumber    String      @unique
   orderDate      DateTime
-  status         String
+  status         String // e.g., 'Pending', 'Fulfilled', 'Cancelled'
   subtotal       Float
   tax            Float
   total          Float
-  generateInvoice Boolean      @default(false)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  generateInvoice Boolean     @default(false)
+
+  counterparty   Counterparty @relation(fields: [counterpartyId], references: [id])
+  counterpartyId String
+
   items          SalesOrderItem[]
-  invoice        Invoice?
+  invoices       Invoice[]
+
+  // For auditing, which user created the sale
+  user           User?       @relation(fields: [userId], references: [id])
+  userId         String?
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }
 
 model SalesOrderItem {
-  id           String      @id @default(cuid())
+  id          String   @id @default(cuid())
+  quantity    Int
+  unitPrice   Float
+
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
   salesOrderId String
-  salesOrder   SalesOrder  @relation(fields: [salesOrderId], references: [id])
-  productId    String
-  product      Product     @relation(fields: [productId], references: [id])
-  quantity     Int
-  unitPrice    Float
+
+  product     Product @relation(fields: [productId], references: [id])
+  productId   String
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
+// Represents a purchase order
 model PurchaseOrder {
-  id             String             @id @default(cuid())
-  orderNumber    String             @unique
-  counterpartyId String
-  counterparty   Counterparty       @relation(fields: [counterpartyId], references: [id])
+  id             String      @id @default(cuid())
+  orderNumber    String      @unique
   orderDate      DateTime
-  status         String
+  status         String // e.g., 'Pending', 'Received', 'Cancelled'
   subtotal       Float
   tax            Float
   total          Float
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+
+  counterparty   Counterparty @relation(fields: [counterpartyId], references: [id])
+  counterpartyId String
+
   items          PurchaseOrderItem[]
+
+  // For auditing, which user created the purchase
+  user           User?       @relation(fields: [userId], references: [id])
+  userId         String?
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }
 
 model PurchaseOrderItem {
-  id              String         @id @default(cuid())
+  id          String   @id @default(cuid())
+  quantity    Int
+  unitPrice   Float
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   purchaseOrderId String
-  purchaseOrder   PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id])
-  productId       String
-  product         Product        @relation(fields: [productId], references: [id])
-  quantity        Int
-  unitPrice       Float
+
+  product     Product @relation(fields: [productId], references: [id])
+  productId   String
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-model Payment {
-  id              String        @id @default(cuid())
-  date            DateTime
-  counterpartyId  String
-  counterparty    Counterparty  @relation(fields: [counterpartyId], references: [id])
-  walletId        String
-  wallet          Wallet        @relation(fields: [walletId], references: [id])
-  description     String?
-  amount          Float
-  type            String       // e.g., "Bank Transfer", "Cash"
-  status          String       // e.g., "Received", "Sent"
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-}
-
-model Wallet {
-    id        String    @id @default(cuid())
-    name      String    @unique
-    balance   Float
-    createdAt DateTime  @default(now())
-    updatedAt DateTime  @updatedAt
-    payments  Payment[]
-}
-
-
+// New model for invoices
 model Invoice {
-  id             String       @id @default(cuid())
-  invoiceNumber  String       @unique
-  salesOrderId   String       @unique
-  salesOrder     SalesOrder   @relation(fields: [salesOrderId], references: [id])
-  counterpartyId String
-  counterparty   Counterparty @relation(fields: [counterpartyId], references: [id])
+  id             String      @id @default(cuid())
+  invoiceNumber  String      @unique
   issueDate      DateTime
   dueDate        DateTime
-  status         String
+  status         String // e.g., 'Draft', 'Sent', 'Paid', 'Overdue'
   total          Float
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+
+  counterparty   Counterparty @relation(fields: [counterpartyId], references: [id])
+  counterpartyId String
+
+  salesOrder     SalesOrder @relation(fields: [salesOrderId], references: [id])
+  salesOrderId   String     @unique
+
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+// New model for Wallets
+model Wallet {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  balance   Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  payments  Payment[]
+}
+
+// New model for Payments
+model Payment {
+  id             String      @id @default(cuid())
+  date           DateTime
+  amount         Float       // Positive for income, negative for expenses
+  type           String      // e.g., 'Cash', 'Bank Transfer', 'Card'
+  status         String      // e.g., 'Received', 'Sent', 'Refunded'
+  description    String?
+
+  wallet         Wallet      @relation(fields: [walletId], references: [id])
+  walletId       String
+
+  counterparty   Counterparty @relation(fields: [counterpartyId], references: [id])
+  counterpartyId String
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }

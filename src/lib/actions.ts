@@ -390,7 +390,7 @@ export async function getInvoices(): Promise<(Invoice & { counterparty: Counterp
     }
 }
 
-export async function getInvoiceById(id: string): Promise<(Invoice & { salesOrder: SalesOrder & { items: (SalesOrderItem & { product: Product })[] }, counterparty: Counterparty }) | null> {
+export async function getInvoiceById(id: string) {
     try {
         const invoice = await prisma.invoice.findUnique({
             where: { id },

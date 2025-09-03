@@ -56,6 +56,36 @@ async function main() {
       console.log(`'Walk-in Customer' already exists.`);
   }
 
+  // Create default 'Cash Drawer' wallet for POS
+  const cashWalletName = 'Cash Drawer';
+  let cashWallet = await prisma.wallet.findUnique({ where: { name: cashWalletName }});
+  if (!cashWallet) {
+    cashWallet = await prisma.wallet.create({
+      data: {
+        name: cashWalletName,
+        balance: 100.00, // Start with some cash
+      }
+    });
+    console.log(`Created '${cashWalletName}' wallet with id: ${cashWallet.id}`);
+  } else {
+    console.log(`'${cashWalletName}' wallet already exists.`);
+  }
+
+  // Create default 'Main Bank Account' wallet
+  const bankWalletName = 'Main Bank Account';
+  let bankWallet = await prisma.wallet.findUnique({ where: { name: bankWalletName }});
+  if (!bankWallet) {
+    bankWallet = await prisma.wallet.create({
+      data: {
+        name: bankWalletName,
+        balance: 5000.00,
+      }
+    });
+    console.log(`Created '${bankWalletName}' wallet with id: ${bankWallet.id}`);
+  } else {
+    console.log(`'${bankWalletName}' wallet already exists.`);
+  }
+
 
   console.log(`Seeding finished.`)
 }

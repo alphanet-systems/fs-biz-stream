@@ -180,7 +180,9 @@ function CheckoutDialog({ total, cart, onSuccessfulCheckout }: { total: number; 
     const [open, setOpen] = useState(false);
 
     // This is a placeholder. In a real app, you'd have a way to select or create a 'POS Customer'.
-    // We assume a 'Walk-in Customer' with ID "1" exists.
+    // We assume a 'Walk-in Customer' with ID "1" exists in the seed data.
+    // The specific ID can be fragile. A better approach is to fetch it.
+    // For this implementation, we hardcode it based on our seed script.
     const POS_COUNTERPARTY_ID = "1"; 
 
     const handleConfirmPayment = () => {
@@ -191,6 +193,7 @@ function CheckoutDialog({ total, cart, onSuccessfulCheckout }: { total: number; 
                 // Using a default counterparty ID for POS sales.
                 counterpartyId: POS_COUNTERPARTY_ID, 
                 orderDate: new Date(),
+                generateInvoice: false, // POS sales usually don't generate formal invoices
                 items: cart.map(item => ({
                     productId: item.id,
                     quantity: item.quantity,
@@ -230,7 +233,7 @@ function CheckoutDialog({ total, cart, onSuccessfulCheckout }: { total: number; 
                     <p className="text-muted-foreground">Total Amount Due</p>
                     <p className="text-4xl font-bold">${total.toFixed(2)}</p>
                 </div>
-                <Tabs defaultValue="card">
+                <Tabs defaultValue="cash">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="card"><CreditCard className="mr-2 h-4 w-4"/>Card</TabsTrigger>
                         <TabsTrigger value="cash"><DollarSign className="mr-2 h-4 w-4"/>Cash</TabsTrigger>

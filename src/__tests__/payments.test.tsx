@@ -107,7 +107,7 @@ describe('PaymentsPage', () => {
   
   it('opens the add income sheet and creates a new income payment', async () => {
     // This test now needs to handle selecting a wallet
-    const { rerender } = render(<PaymentsPage />);
+    render(<PaymentsPage />);
     const user = userEvent.setup();
 
     mockCreatePayment.mockResolvedValue({ success: true, data: {} as Payment });

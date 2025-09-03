@@ -127,7 +127,7 @@ describe('PosPage', () => {
   });
 
   it('completes a sale and clears the cart', async () => {
-    const newOrder: SalesOrder = { id: 'so-pos', orderNumber: 'SO-POS-123', clientId: '1', orderDate: new Date(), status: 'Pending', subtotal: 79.99, tax: 8, total: 87.99, createdAt: new Date(), updatedAt: new Date() };
+    const newOrder: SalesOrder = { id: 'so-pos', orderNumber: 'SO-POS-123', clientId: '1', orderDate: new Date(), status: 'Pending', subtotal: 79.99, tax: 8, total: 87.99, generateInvoice: false, createdAt: new Date(), updatedAt: new Date() };
     mockCreateSalesOrder.mockResolvedValue({ success: true, data: newOrder });
     mockGetProducts.mockResolvedValue(mockProducts); // Mock the refetch
 
@@ -147,8 +147,9 @@ describe('PosPage', () => {
     // Assertions
     await waitFor(() => {
         expect(mockCreateSalesOrder).toHaveBeenCalledWith({
-            clientId: "1", // The hardcoded POS client ID
+            counterpartyId: "1", // The hardcoded POS client ID
             orderDate: expect.any(Date),
+            generateInvoice: false,
             items: [{
                 productId: 'p1',
                 quantity: 1,
@@ -170,4 +171,3 @@ describe('PosPage', () => {
   });
 
 });
-
