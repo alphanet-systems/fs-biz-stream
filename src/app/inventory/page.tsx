@@ -29,13 +29,23 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { type Product } from "@prisma/client";
-import { createProduct, getProducts, exportToCsv } from "@/lib/actions";
+import { createProduct, getProducts, exportToCsv, updateProduct, deleteProduct } from "@/lib/actions";
 import { ImportDialog } from "@/components/ImportDialog";
 import { useDataFetch } from "@/hooks/use-data-fetch";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 
 const productSchema = z.object({
@@ -52,11 +62,58 @@ export default function InventoryPage() {
   const { data: productList, setData: setProductList, refetch: fetchProducts } = useDataFetch(getProducts, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [isExporting, startExportTransition] = useTransition();
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [isDeleting, startDeleteTransition] = useTransition();
   const { toast } = useToast();
 
-  const onProductCreated = (newProduct: Product) => {
-    setProductList(prevList => [newProduct, ...prevList]);
+  const onFormSubmit = (updatedProduct: Product) => {
+    if (editingProduct) {
+        setProductList(prevList => prevList.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    } else {
+        setProductList(prevList => [updatedProduct, ...prevList]);
+    }
   };
+  
+  const handleAddNew = () => {
+    setEditingProduct(null);
+    setIsSheetOpen(true);
+  }
+
+  const handleEdit = (product: Product) => {
+    setEditingProduct(product);
+    setIsSheetOpen(true);
+  }
+  
+  const openDeleteDialog = (product: Product) => {
+    setDeletingProduct(product);
+    setIsDeleteAlertOpen(true);
+  }
+
+  const handleDelete = () => {
+    if (!deletingProduct) return;
+    
+    startDeleteTransition(async () => {
+        const result = await deleteProduct(deletingProduct.id);
+        if (result.success) {
+            setProductList(prev => prev.filter(p => p.id !== deletingProduct.id));
+            toast({
+                title: "Product Deleted",
+                description: `${deletingProduct.name} has been successfully deleted.`,
+            });
+        } else {
+            toast({
+                title: "Error",
+                description: result.error,
+                variant: "destructive",
+            });
+        }
+        setIsDeleteAlertOpen(false);
+        setDeletingProduct(null);
+    });
+  }
   
   const filteredProducts = productList.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -108,7 +165,10 @@ export default function InventoryPage() {
                 <File className="h-4 w-4 mr-2" />
                 {isExporting ? 'Exporting...' : 'Export'}
               </Button>
-              <AddProductSheet onProductCreated={onProductCreated}/>
+              <Button onClick={handleAddNew}>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add Product
+              </Button>
             </div>
           </div>
           <div className="relative mt-4">
@@ -169,10 +229,10 @@ export default function InventoryPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEdit(product)}>Edit</DropdownMenuItem>
                         <DropdownMenuItem>View Analytics</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600" onClick={() => openDeleteDialog(product)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -182,42 +242,82 @@ export default function InventoryPage() {
           </Table>
         </CardContent>
       </Card>
+      
+      <AddProductSheet
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+        onFormSubmit={onFormSubmit}
+        product={editingProduct}
+      />
+      
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the product
+                    "{deletingProduct?.name}".
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+                    {isDeleting ? "Deleting..." : "Delete"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-function AddProductSheet({ onProductCreated }: { onProductCreated: (product: Product) => void }) {
-    const [open, setOpen] = useState(false);
+interface AddProductSheetProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onFormSubmit: (product: Product) => void;
+    product: Product | null;
+}
+
+function AddProductSheet({ open, onOpenChange, onFormSubmit, product }: AddProductSheetProps) {
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
     
     const form = useForm<ProductFormValues>({
       resolver: zodResolver(productSchema),
-      defaultValues: {
-        name: "",
-        sku: "",
-        stock: 0,
-        price: 0,
-        category: "",
-      },
     });
+
+    useEffect(() => {
+        if (open) {
+            form.reset(product ? {
+                ...product,
+                category: product.category || '',
+            } : {
+                name: "",
+                sku: "",
+                stock: 0,
+                price: 0,
+                category: "",
+            });
+        }
+    }, [open, product, form]);
 
     const handleSaveProduct = (values: ProductFormValues) => {
         startTransition(async () => {
-            const result = await createProduct({
+            const action = product ? updateProduct : createProduct;
+            const result = await action({
                 ...values,
+                id: product?.id,
                 category: values.category || null,
-                imageUrl: "https://placehold.co/100x100.png",
+                imageUrl: product?.imageUrl || "https://placehold.co/100x100.png",
             });
 
             if (result.success && result.data) {
-                onProductCreated(result.data);
+                onFormSubmit(result.data);
                 toast({
-                    title: "Product Saved",
-                    description: `${result.data.name} has been successfully added.`,
+                    title: `Product ${product ? 'Updated' : 'Saved'}`,
+                    description: `${result.data.name} has been successfully ${product ? 'updated' : 'added'}.`,
                 });
-                form.reset();
-                setOpen(false);
+                onOpenChange(false);
             } else {
                 toast({
                     title: "Error",
@@ -228,27 +328,15 @@ function AddProductSheet({ onProductCreated }: { onProductCreated: (product: Pro
         });
     };
 
-    // Reset form when sheet is closed
-    useEffect(() => {
-        if (!open) {
-            form.reset();
-        }
-    }, [open, form]);
+    const title = product ? "Edit Product" : "Add New Product";
+    const description = product ? "Update the details of this product." : "Fill in the details below to add a new product to your inventory.";
 
     return (
-        <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button onClick={() => setOpen(true)}>
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Add Product
-              </Button>
-            </SheetTrigger>
+        <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent className="sm:max-w-lg">
                 <SheetHeader>
-                    <SheetTitle>Add New Product</SheetTitle>
-                    <SheetDescription>
-                        Fill in the details below to add a new product to your inventory.
-                    </SheetDescription>
+                    <SheetTitle>{title}</SheetTitle>
+                    <SheetDescription>{description}</SheetDescription>
                 </SheetHeader>
                 <Separator className="my-4"/>
                 <Form {...form}>
@@ -314,14 +402,14 @@ function AddProductSheet({ onProductCreated }: { onProductCreated: (product: Pro
                                 <FormItem>
                                     <FormLabel>Category</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="e.g., Electronics" {...field} />
+                                        <Input placeholder="e.g., Electronics" {...field} value={field.value ?? ''} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
                         <div className="mt-6 flex justify-end gap-2 pt-4">
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                             <Button type="submit" disabled={isPending}>
                               {isPending ? "Saving..." : "Save Product"}
                             </Button>

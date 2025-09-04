@@ -86,7 +86,7 @@ type CounterpartyInput = {
     types: string[];
 }
 
-export async function createCounterparty(data: CounterpartyInput): Promise<ServerActionResult<Counterparty>> {
+export async function createCounterparty(data: Omit<CounterpartyInput, 'id'>): Promise<ServerActionResult<Counterparty>> {
   try {
     const newCounterparty = await prisma.counterparty.create({ 
       data: {
@@ -168,10 +168,23 @@ export async function getProducts(): Promise<Product[]> {
   }
 }
 
-export async function createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<ServerActionResult<Product>> {
+type ProductInput = {
+    id?: string;
+    name: string;
+    sku: string;
+    stock: number;
+    price: number;
+    category: string | null;
+    imageUrl?: string | null;
+}
+
+export async function createProduct(data: Omit<ProductInput, 'id'>): Promise<ServerActionResult<Product>> {
   try {
     const newProduct = await prisma.product.create({
-      data,
+      data: {
+        ...data,
+        imageUrl: data.imageUrl ?? null
+      },
     });
     revalidatePath('/inventory');
     revalidatePath('/setup');
@@ -180,6 +193,50 @@ export async function createProduct(data: Omit<Product, 'id' | 'createdAt' | 'up
     console.error('Error creating product:', error);
     return { success: false, error: 'Failed to create product.' };
   }
+}
+
+export async function updateProduct(data: ProductInput): Promise<ServerActionResult<Product>> {
+    if (!data.id) {
+        return { success: false, error: 'Product ID is required for updates.' };
+    }
+    try {
+        const updatedProduct = await prisma.product.update({
+            where: { id: data.id },
+            data: {
+                name: data.name,
+                sku: data.sku,
+                stock: data.stock,
+                price: data.price,
+                category: data.category,
+                imageUrl: data.imageUrl ?? null,
+            },
+        });
+        revalidatePath('/inventory');
+        return { success: true, data: updatedProduct };
+    } catch (error) {
+        console.error('Error updating product:', error);
+        return { success: false, error: 'Failed to update product.' };
+    }
+}
+
+export async function deleteProduct(id: string): Promise<ServerActionResult<{ id: string }>> {
+    try {
+        const salesOrderItems = await prisma.salesOrderItem.count({ where: { productId: id } });
+        const purchaseOrderItems = await prisma.purchaseOrderItem.count({ where: { productId: id } });
+
+        if (salesOrderItems > 0 || purchaseOrderItems > 0) {
+            return { success: false, error: 'Cannot delete product that is part of an existing sales or purchase order.' };
+        }
+        
+        await prisma.product.delete({
+            where: { id },
+        });
+        revalidatePath('/inventory');
+        return { success: true, data: { id } };
+    } catch (error) {
+        console.error('Error deleting product:', error);
+        return { success: false, error: 'Failed to delete product.' };
+    }
 }
 
 // Wallet Actions
