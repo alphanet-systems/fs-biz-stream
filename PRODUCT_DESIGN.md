@@ -1,3 +1,4 @@
+
 # BizStream v1 - Product Design Document
 
 This document outlines the product requirements, target audience, and core features for the first official version of the BizStream application. This moves beyond the initial MVP phase into a structured product plan.
@@ -91,7 +92,9 @@ The application will be built around four interconnected modules that automate k
 
 ## 6. Technical Architecture Scenarios
 
-This section outlines three potential technology stacks for the backend. The goal is to choose the path that best balances development speed with our core principles of control, reliability, and open-source philosophy. All three scenarios assume the use of **Next.js** for the frontend and **Prisma ORM** for data access, allowing a seamless transition from local **SQLite** development to production **PostgreSQL**.
+This section outlines three potential technology stacks for the backend. The goal is to choose the path that best balances development speed with our core principles of control, reliability, and open-source philosophy. All three scenarios assume the use of **Next.js** for the frontend and **Prisma ORM**.
+
+A key part of the database strategy is using **SQLite** for local development and **PostgreSQL** for production. This provides a lightweight, fast, and zero-config development experience while leveraging a robust, scalable database for the live application. Prisma's schema abstraction makes this switch seamless.
 
 ### **Scenario A: The "Modular Control" Stack**
 
@@ -134,17 +137,18 @@ This approach uses a single, open-source Backend-as-a-Service (BaaS) platform th
 
 This approach leverages the Next.js framework to its maximum potential, minimizing external backend dependencies beyond the database itself.
 
-- **Database:** **PostgreSQL.**
-- **API Layer:** **Written entirely in Next.js.** We would use Prisma to connect directly to the database from Next.js API Routes and Server Actions. We would write all business logic for every API endpoint ourselves.
+- **Database:** **PostgreSQL (Production) / SQLite (Development).**
+- **API Layer:** **Written entirely in Next.js.** We use Prisma to connect directly to the database from Next.js API Routes and Server Actions. We write all business logic for every API endpoint ourselves.
 - **Authentication/RBAC:** **NextAuth.js (Auth.js).** The de-facto open-source authentication solution for Next.js. It's highly customizable and has adapters for Prisma, allowing us to build our RBAC system.
 - **File Storage:** Handled by a custom API route in Next.js that would write files to a secure, persistent volume on the server.
 
 *   **Pros:**
     *   **Single Codebase & Language:** The entire application, both frontend and backend logic, lives in one Next.js repository using TypeScript. This simplifies the development workflow.
     *   **Excellent Developer Experience:** We stay within the familiar and highly-optimized Next.js ecosystem.
+    *   **Optimal Dev/Prod Parity:** Using SQLite locally makes setup instant, while Prisma ensures a smooth transition to a powerful PostgreSQL database for production.
 *   **Cons:**
-    *   **"Reinventing the Wheel":** We would be manually creating an API for our database, a task that PostgREST (Scenario A) or Appwrite (Scenario B) would largely automate.
-    *   **Scattered Authorization Logic:** Permission checks would live within the application code (in various API routes), which can become complex to manage if not handled with care.
+    *   **"Reinventing the Wheel":** We manually create an API for our database, a task that PostgREST (Scenario A) or Appwrite (Scenario B) would largely automate.
+    *   **Scattered Authorization Logic:** Permission checks live within the application code (in various API routes), which can become complex to manage if not handled with care.
 
 ---
 ## 7. Final Architecture Decision

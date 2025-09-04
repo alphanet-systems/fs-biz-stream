@@ -1,3 +1,4 @@
+
 # Troubleshooting Common Development Issues
 
 This document outlines solutions to common errors that may occur during the initial setup and development of this project, particularly related to Prisma and the development environment.
@@ -21,25 +22,18 @@ This document outlines solutions to common errors that may occur during the init
 
   This ensures that every time the development server starts, the database schema is synchronized first, then seeded, and finally, the application is launched.
 
-## 2. Prisma Error: OpenSSL Version Mismatch
+## 2. Prisma Schema Error: "The current connector does not support..." (Error P1012)
 
-- **Error Log:** `Prisma Client could not locate the Query Engine for runtime "debian-openssl-3.0.x". This happened because Prisma Client was generated for "debian-openssl-1.1.x"...`
+- **Error Log:** `error: Field "types" in model "Counterparty" can't be a list. The current connector does not support lists of primitive types.` or `error: Error validating: You defined the enum 'UserRole'. But the current connector does not support enums.`
 
-- **Cause:** This error occurs when the Prisma Client is generated in an environment with one version of OpenSSL, but the application runs in an environment with a different, incompatible version. The pre-compiled Query Engine binary that Prisma downloads must match the system's OpenSSL version.
+- **Cause:** This validation error (P1012) occurs because the `prisma/schema.prisma` file uses data types that are not supported by the current database provider. Our project uses **SQLite** for local development, which does not support native `Enum` or array types (like `String[]`). These features are intended for our **PostgreSQL** production database.
 
-- **Solution:** The fix is to explicitly tell Prisma to generate binaries for all required environments. This is done by adding the target environment's identifier to the `binaryTargets` array in the `generator` block of the `prisma/schema.prisma` file.
+- **Solution:** To maintain a fast and simple local development environment, the Prisma schema must be compatible with SQLite. This requires avoiding unsupported features during development.
 
-  The `generator` block was updated as follows:
+  1.  **Use `String` for Enums:** The `UserRole` enum was replaced with a simple `String` field in the `User` model. Application logic enforces the "ADMIN" or "USER" values.
+  2.  **Use `String` for Arrays:** The `types` field on the `Counterparty` model was changed from `String[]` to a `String`. The application code now handles this as a comma-separated value (e.g., `"CLIENT,VENDOR"`), splitting and joining the string as needed.
 
-  ```prisma
-  // prisma/schema.prisma
-
-  generator client {
-    provider      = "prisma-client-js"
-    binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
-  }
-  ```
-  After making this change, running `prisma generate` (which happens automatically on `npm install`) downloads the correct binaries, resolving the conflict.
+  When the application is deployed to production with a PostgreSQL database, the schema can be updated to use the native `UserRole` `Enum` and `String[]` types for better data integrity. Prisma's migration tools (`prisma migrate deploy`) will handle this transition smoothly.
 
 ## 3. NextAuth.js Error: "MissingCSRF" in Cloud IDEs
 
@@ -148,5 +142,3 @@ This document outlines solutions to common errors that may occur during the init
   ```
   
 These configuration changes work together to make NextAuth.js fully functional within the security constraints of a proxied, iframe-based cloud development environment.
-
-    

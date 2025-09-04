@@ -36,4 +36,4 @@ To get started with development, run the following command to start the local se
 npm run dev
 ```
 
-The application will be available at `http://localhost:9002`.
+The application will be available at `http://localhost:9002`. This command automatically syncs your Prisma schema with the local SQLite database and seeds it with initial data.
