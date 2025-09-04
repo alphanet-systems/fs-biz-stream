@@ -442,6 +442,58 @@ export async function createSalesOrder(input: SalesOrderInput): Promise<ServerAc
     }
 }
 
+export async function fulfillSalesOrder(orderId: string): Promise<ServerActionResult<SalesOrder>> {
+    try {
+        const updatedOrder = await prisma.$transaction(async (tx) => {
+            // 1. Find the sales order
+            const order = await tx.salesOrder.findUnique({
+                where: { id: orderId },
+            });
+
+            if (!order || order.status !== 'Pending') {
+                throw new Error('Order not found or not in a fulfillable state.');
+            }
+
+            // 2. Find the default bank wallet to receive the income
+            const bankWallet = await tx.wallet.findFirst({
+                where: { name: 'Main Bank Account' },
+            });
+            if (!bankWallet) {
+                throw new Error('Main Bank Account wallet not found. Cannot record income.');
+            }
+
+            // 3. Create the income payment record
+            await tx.payment.create({
+                data: {
+                    amount: order.total, // Positive for income
+                    type: 'Sale',
+                    status: 'Received',
+                    description: `Payment for Sales Order ${order.orderNumber}`,
+                    date: new Date(),
+                    counterpartyId: order.counterpartyId,
+                    walletId: bankWallet.id,
+                },
+            });
+
+            // 4. Update the sales order status
+            const fulfilledOrder = await tx.salesOrder.update({
+                where: { id: orderId },
+                data: { status: 'Fulfilled' },
+            });
+
+            return fulfilledOrder;
+        });
+
+        revalidatePath('/sales');
+        revalidatePath('/payments');
+        return { success: true, data: updatedOrder };
+    } catch (error) {
+        console.error('Failed to fulfill sales order:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
 
 // Purchase Order Actions
 export async function getPurchaseOrders(): Promise<(PurchaseOrder & { counterparty: Counterparty })[]> {

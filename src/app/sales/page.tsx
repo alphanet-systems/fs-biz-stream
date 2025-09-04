@@ -26,7 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type SalesOrder, type Counterparty } from "@prisma/client";
-import { getSalesOrders, exportToCsv } from "@/lib/actions";
+import { getSalesOrders, exportToCsv, fulfillSalesOrder } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useDataFetch } from "@/hooks/use-data-fetch";
 
@@ -46,8 +46,9 @@ const getStatusVariant = (status: SalesOrder['status']) => {
 };
 
 export default function SalesPage() {
-  const { data: salesOrders } = useDataFetch(getSalesOrders, []);
+  const { data: salesOrders, refetch: refetchSalesOrders } = useDataFetch(getSalesOrders, []);
   const [isExporting, startExportTransition] = useTransition();
+  const [isFulfilling, startFulfillTransition] = useTransition();
   const { toast } = useToast();
 
   const handleExport = () => {
@@ -76,6 +77,25 @@ export default function SalesPage() {
       }
     });
   };
+
+  const handleFulfillOrder = (orderId: string) => {
+    startFulfillTransition(async () => {
+      const result = await fulfillSalesOrder(orderId);
+      if (result.success) {
+        toast({
+          title: "Order Fulfilled",
+          description: `Order ${result.data?.orderNumber} has been fulfilled and payment recorded.`,
+        });
+        refetchSalesOrders();
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Could not fulfill the order.",
+          variant: "destructive",
+        });
+      }
+    });
+  }
 
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">
@@ -153,6 +173,11 @@ export default function SalesPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem>View Details</DropdownMenuItem>
+                          {order.status === 'Pending' && (
+                             <DropdownMenuItem onClick={() => handleFulfillOrder(order.id)} disabled={isFulfilling}>
+                              Fulfill Order
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem>
                             <FileText className="mr-2 h-4 w-4"/> Generate Invoice
                           </DropdownMenuItem>
