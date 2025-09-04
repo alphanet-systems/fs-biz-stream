@@ -1,24 +1,17 @@
 
 import { z } from 'zod';
-import { type Payment as PrismaPayment, type Counterparty as PrismaCounterparty, type Product as PrismaProduct, type SalesOrder as PrismaSalesOrder, type Invoice as PrismaInvoice, type SalesOrderItem as PrismaSalesOrderItem } from "@prisma/client";
+import { type Payment as PrismaPayment, type Counterparty as PrismaCounterparty, type Product as PrismaProduct, type SalesOrder as PrismaSalesOrder, type Invoice as PrismaInvoice, type SalesOrderItem as PrismaSalesOrderItem, type CalendarEvent as PrismaCalendarEvent } from "@prisma/client";
 
 export type Product = PrismaProduct;
 export type SalesOrder = PrismaSalesOrder;
 export type Invoice = PrismaInvoice;
 export type SalesOrderItem = PrismaSalesOrderItem;
+export type CalendarEvent = PrismaCalendarEvent;
 
 
 export type Payment = Omit<PrismaPayment, 'date'> & {
   counterparty: Counterparty;
   date: string;
-};
-
-export type CalendarEvent = {
-  id: string;
-  date: Date;
-  title: string;
-  description?: string;
-  counterparty?: Counterparty;
 };
 
 export type ChartData = {
@@ -54,3 +47,6 @@ export const CsvToJsonInputSchema = z.object({
   fields: z.record(FieldDefinitionSchema).describe('An object where keys are the desired JSON field names and values are their definitions.'),
 });
 export type CsvToJsonInput = z.infer<typeof CsvToJsonInputSchema>;
+
+// Need the Prisma type for actions, but the component needs the converted type
+export type Counterparty = PrismaCounterparty;

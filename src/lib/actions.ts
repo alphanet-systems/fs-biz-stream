@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import { type Counterparty as PrismaCounterparty, type Product, type Payment, type SalesOrder, type PurchaseOrder, type Wallet, type Invoice, type User } from '@prisma/client';
+import { type Counterparty as PrismaCounterparty, type Product, type Payment, type SalesOrder, type PurchaseOrder, type Wallet, type Invoice, type User, type CalendarEvent } from '@prisma/client';
 import { jsonToCsv } from '@/ai/flows/export-flow';
 import { csvToJson } from '@/ai/flows/csv-to-json-flow';
 import { auth } from '@/auth';
@@ -686,6 +686,53 @@ export async function getInvoiceById(id: string) {
     } catch (error) {
         console.error(`Error fetching invoice ${id}:`, error);
         return null;
+    }
+}
+
+// Calendar Event Actions
+export async function getCalendarEvents(): Promise<CalendarEvent[]> {
+    try {
+        return await prisma.calendarEvent.findMany({
+            orderBy: {
+                start: 'asc',
+            },
+        });
+    } catch (error) {
+        console.error('Error fetching calendar events:', error);
+        return [];
+    }
+}
+
+type EventInput = {
+    title: string;
+    description: string | null;
+    start: Date;
+    end: Date;
+    allDay: boolean;
+    counterpartyId?: string | null;
+}
+
+export async function createCalendarEvent(data: EventInput): Promise<ServerActionResult<CalendarEvent>> {
+    try {
+        const newEvent = await prisma.calendarEvent.create({
+            data,
+        });
+        revalidatePath('/calendar');
+        return { success: true, data: newEvent };
+    } catch (error) {
+        console.error('Error creating calendar event:', error);
+        return { success: false, error: 'Failed to create event.' };
+    }
+}
+
+export async function deleteCalendarEvent(id: string): Promise<ServerActionResult<{ id: string }>> {
+    try {
+        await prisma.calendarEvent.delete({ where: { id } });
+        revalidatePath('/calendar');
+        return { success: true, data: { id } };
+    } catch (error) {
+        console.error('Error deleting calendar event:', error);
+        return { success: false, error: 'Failed to delete event.' };
     }
 }
 
