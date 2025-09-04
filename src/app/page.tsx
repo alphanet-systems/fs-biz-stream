@@ -35,6 +35,7 @@ import { type ChartData } from "@/types";
 import { getSalesOrders, getPayments } from "@/lib/actions";
 import { type SalesOrder, type Counterparty, type Payment } from "@prisma/client";
 import { useDataFetch } from "@/hooks/use-data-fetch";
+import { format, parseISO } from "date-fns";
 
 const chartConfig = {
   profit: {
@@ -48,15 +49,6 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 type SalesOrderWithCounterparty = SalesOrder & { counterparty: Counterparty };
-
-const chartData: ChartData[] = [
-  { month: "Jan", profit: 1860, expenses: 800 },
-  { month: "Feb", profit: 3050, expenses: 1200 },
-  { month: "Mar", profit: 2370, expenses: 980 },
-  { month: "Apr", profit: 730, expenses: 1100 },
-  { month: "May", profit: 2090, expenses: 1300 },
-  { month: "Jun", profit: 2140, expenses: 1400 },
-];
 
 export default function DashboardPage() {
   const { data: salesOrders } = useDataFetch(getSalesOrders, []);
@@ -78,6 +70,42 @@ export default function DashboardPage() {
     .reduce((acc, p) => acc + Math.abs(p.amount), 0);
 
   const profit = totalRevenue - totalExpenses;
+  
+  const chartData = React.useMemo(() => {
+    const monthlyData: { [key: string]: ChartData } = {};
+
+    // Initialize months
+    for(let i = 0; i < 6; i++) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        const monthKey = format(d, "MMM");
+        if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = { month: monthKey, profit: 0, expenses: 0 };
+        }
+    }
+
+    // Process fulfilled sales for profit
+    salesOrders.forEach(order => {
+        if (order.status === 'Fulfilled') {
+            const month = format(new Date(order.orderDate), "MMM");
+            if (monthlyData[month]) {
+                monthlyData[month].profit += order.total;
+            }
+        }
+    });
+
+    // Process sent payments for expenses
+    payments.forEach(payment => {
+        if (payment.status === 'Sent') {
+            const month = format(new Date(payment.date), "MMM");
+            if (monthlyData[month]) {
+                monthlyData[month].expenses += Math.abs(payment.amount);
+            }
+        }
+    });
+
+    return Object.values(monthlyData).reverse();
+  }, [salesOrders, payments]);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
