@@ -12,17 +12,19 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMont
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { type CalendarEvent } from "@/types";
-import { calendarEvents, clients } from "@/lib/mock-data";
+import { type CalendarEvent, type Counterparty } from "@/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getCounterparties } from "@/lib/actions";
 
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  // In a real app, you'd fetch these from a database
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
 
   const firstDayOfMonth = startOfMonth(currentDate);
   const lastDayOfMonth = endOfMonth(currentDate);
@@ -126,7 +128,13 @@ export default function CalendarPage() {
 function AddEventDialog() {
   const [eventTitle, setEventTitle] = useState('');
   const [eventDate, setEventDate] = useState('');
-  const suggestedClients = eventTitle ? clients.filter(c => c.name.toLowerCase().includes(eventTitle.toLowerCase())) : [];
+  const [allClients, setAllClients] = useState<Counterparty[]>([]);
+  
+  React.useEffect(() => {
+    getCounterparties('CLIENT').then(setAllClients);
+  }, []);
+
+  const suggestedClients = eventTitle ? allClients.filter(c => c.name.toLowerCase().includes(eventTitle.toLowerCase())) : [];
 
   const isFormValid = useMemo(() => {
     return eventTitle.trim() !== '' && eventDate.trim() !== '';
