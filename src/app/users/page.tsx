@@ -320,5 +320,3 @@ function InviteUserDialog({ children, onUserInvited }: { children: React.ReactNo
         </Dialog>
     )
 }
-
-    
