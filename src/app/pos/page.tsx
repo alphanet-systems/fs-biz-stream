@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getProducts, createSalesOrder } from '@/lib/actions';
 import { type Product } from '@prisma/client';
 import { useToast } from '@/hooks/use-toast';
+import { useDataFetch } from '@/hooks/use-data-fetch';
 
 type CartItem = {
     id: string;
@@ -24,19 +25,10 @@ type CartItem = {
 };
 
 export default function PosPage() {
-    const [products, setProducts] = useState<Product[]>([]);
+    const { data: products, refetch: fetchProducts } = useDataFetch(getProducts, []);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
-
-    const fetchProducts = () => {
-        getProducts().then(setProducts);
-    }
-
-    React.useEffect(() => {
-        fetchProducts();
-    }, []);
 
     const addToCart = (product: Product) => {
         setCart(prevCart => {

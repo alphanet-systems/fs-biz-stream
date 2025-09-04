@@ -1,11 +1,11 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
-import { Search, MoreHorizontal, FileText } from "lucide-react";
+import { Search, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -15,17 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { type Invoice, type Counterparty } from "@prisma/client";
 import { getInvoices } from "@/lib/actions";
+import { useDataFetch } from "@/hooks/use-data-fetch";
 
 type InvoiceWithCounterparty = Invoice & { counterparty: Counterparty };
 
@@ -45,11 +38,7 @@ const getStatusVariant = (status: Invoice['status']) => {
 };
 
 export default function InvoicesPage() {
-  const [invoices, setInvoices] = useState<InvoiceWithCounterparty[]>([]);
-
-  useEffect(() => {
-    getInvoices().then(setInvoices);
-  }, []);
+  const { data: invoices } = useDataFetch(getInvoices, []);
 
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">

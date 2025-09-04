@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday, addMonths, subMonths } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { type CalendarEvent, type Counterparty } from "@/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getCounterparties } from "@/lib/actions";
+import { useDataFetch } from "@/hooks/use-data-fetch";
 
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -128,11 +129,7 @@ export default function CalendarPage() {
 function AddEventDialog() {
   const [eventTitle, setEventTitle] = useState('');
   const [eventDate, setEventDate] = useState('');
-  const [allClients, setAllClients] = useState<Counterparty[]>([]);
-  
-  React.useEffect(() => {
-    getCounterparties('CLIENT').then(setAllClients);
-  }, []);
+  const { data: allClients } = useDataFetch(() => getCounterparties('CLIENT'), []);
 
   const suggestedClients = eventTitle ? allClients.filter(c => c.name.toLowerCase().includes(eventTitle.toLowerCase())) : [];
 

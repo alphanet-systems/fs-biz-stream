@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
@@ -39,6 +39,7 @@ import {
   getProducts,
   createSalesOrder,
 } from '@/lib/actions';
+import { useDataFetch } from '@/hooks/use-data-fetch';
 
 type LineItem = {
   id: string;
@@ -51,8 +52,8 @@ type LineItem = {
 
 export default function NewSalePage() {
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
-  const [clients, setClients] = useState<Counterparty[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const { data: clients } = useDataFetch(() => getCounterparties('CLIENT'), []);
+  const { data: products } = useDataFetch(getProducts, []);
   const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<
     string | undefined
   >();
@@ -63,11 +64,6 @@ export default function NewSalePage() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { toast } = useToast();
-
-  useEffect(() => {
-    getCounterparties('CLIENT').then(setClients);
-    getProducts().then(setProducts);
-  }, []);
 
   const handleAddLineItem = () => {
     setLineItems([

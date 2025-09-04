@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import {
   Card,
   CardContent,
@@ -34,6 +34,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { type ChartData } from "@/types";
 import { getSalesOrders, getPayments } from "@/lib/actions";
 import { type SalesOrder, type Counterparty, type Payment } from "@prisma/client";
+import { useDataFetch } from "@/hooks/use-data-fetch";
 
 const chartConfig = {
   profit: {
@@ -58,13 +59,8 @@ const chartData: ChartData[] = [
 ];
 
 export default function DashboardPage() {
-  const [salesOrders, setSalesOrders] = useState<SalesOrderWithCounterparty[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
-
-  useEffect(() => {
-    getSalesOrders().then(setSalesOrders);
-    getPayments().then(setPayments);
-  }, []);
+  const { data: salesOrders } = useDataFetch(getSalesOrders, []);
+  const { data: payments } = useDataFetch(getPayments, []);
 
   const totalRevenue = salesOrders.reduce(
     (acc, inv) =>
