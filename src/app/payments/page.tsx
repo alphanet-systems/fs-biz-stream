@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useTransition } from "react";
+import React, { useState, useMemo, useTransition, useEffect } from "react";
 import { PlusCircle, Search, File, ArrowUpCircle, ArrowDownCircle, Wallet as WalletIcon, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,13 +17,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/hooks/use-toast";
 import { type Payment, type Counterparty, type Wallet } from "@prisma/client";
 import { createPayment, getPayments, getCounterparties, getWallets, createWallet } from "@/lib/actions";
 import { useDataFetch } from "@/hooks/use-data-fetch";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
 
 const getStatusVariant = (status: "Received" | "Sent") => {
   return status === "Received" 
@@ -136,58 +140,67 @@ export default function PaymentsPage() {
   );
 }
 
+const paymentSchema = z.object({
+    walletId: z.string().min(1, "A wallet must be selected."),
+    amount: z.coerce.number().positive("Amount must be a positive number."),
+    type: z.string().min(1, "Payment method is required."),
+    counterpartyId: z.string().min(1, "A counterparty must be selected."),
+    description: z.string().min(1, "Description is required."),
+});
+
+type PaymentFormValues = z.infer<typeof paymentSchema>;
+
 function AddPaymentSheet({ type, wallets, onPaymentAdded }: { type: 'Received' | 'Sent', wallets: Wallet[], onPaymentAdded: () => void }) {
     const [open, setOpen] = useState(false);
-    const [amount, setAmount] = useState('');
-    const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | undefined>();
-    const [selectedWalletId, setSelectedWalletId] = useState<string | undefined>();
-    const [description, setDescription] = useState('');
-    const [paymentType, setPaymentType] = useState<'Cash' | 'Bank Transfer'>('Bank Transfer');
     const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
-    React.useEffect(() => {
+    const form = useForm<PaymentFormValues>({
+        resolver: zodResolver(paymentSchema),
+        defaultValues: {
+            walletId: undefined,
+            amount: 0,
+            type: "Bank Transfer",
+            counterpartyId: undefined,
+            description: "",
+        },
+    });
+
+    useEffect(() => {
         if (open) {
             getCounterparties().then(setCounterparties);
         }
     }, [open]);
-
-    const isFormValid = useMemo(() => {
-        return amount && Number(amount) > 0 && selectedCounterpartyId && selectedWalletId && description.trim() !== '';
-    }, [amount, selectedCounterpartyId, selectedWalletId, description]);
+    
+    // Reset form when sheet is closed
+    useEffect(() => {
+        if (!open) {
+            form.reset();
+        }
+    }, [open, form]);
 
     const title = type === 'Received' ? 'Add Income' : 'Add Expense';
     const counterpartyLabel = type === 'Received' ? 'From Client' : 'To Vendor';
 
-    const resetForm = () => {
-        setAmount('');
-        setSelectedCounterpartyId(undefined);
-        setSelectedWalletId(undefined);
-        setDescription('');
-        setPaymentType('Bank Transfer');
-    };
-
-    const handleSave = () => {
-        if (!isFormValid) return;
-        
+    const handleSave = (values: PaymentFormValues) => {
         startTransition(async () => {
             const result = await createPayment({
-                amount: type === 'Received' ? Number(amount) : -Number(amount),
-                type: paymentType,
+                amount: type === 'Received' ? values.amount : -values.amount,
+                type: values.type,
                 status: type,
-                description,
-                counterpartyId: selectedCounterpartyId!,
-                walletId: selectedWalletId!,
+                description: values.description,
+                counterpartyId: values.counterpartyId,
+                walletId: values.walletId,
             });
 
             if (result.success) {
                 onPaymentAdded();
                 toast({
                     title: `Payment ${type}`,
-                    description: `The ${type.toLowerCase()} of $${Number(amount).toFixed(2)} has been recorded.`,
+                    description: `The ${type.toLowerCase()} of $${values.amount.toFixed(2)} has been recorded.`,
                 });
-                resetForm();
+                form.reset();
                 setOpen(false);
             } else {
                  toast({
@@ -215,91 +228,137 @@ function AddPaymentSheet({ type, wallets, onPaymentAdded }: { type: 'Received' |
                     </SheetDescription>
                 </SheetHeader>
                 <Separator className="my-4"/>
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="wallet">Wallet *</Label>
-                        <Select onValueChange={setSelectedWalletId} value={selectedWalletId}>
-                            <SelectTrigger id="wallet">
-                                <SelectValue placeholder="Select a wallet" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {wallets.map(w => (
-                                    <SelectItem key={w.id} value={w.id}>{w.name} (${w.balance.toFixed(2)})</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                       <div className="space-y-2">
-                           <Label htmlFor="amount">Amount *</Label>
-                           <Input id="amount" type="number" placeholder="e.g., 500.00" value={amount} onChange={e => setAmount(e.target.value)} />
-                       </div>
-                       <div className="space-y-2">
-                           <Label htmlFor="type">Payment Method *</Label>
-                            <Select onValueChange={(value: 'Cash' | 'Bank Transfer') => setPaymentType(value)} value={paymentType}>
-                               <SelectTrigger id="type">
-                                   <SelectValue placeholder="Select a type" />
-                               </SelectTrigger>
-                               <SelectContent>
-                                   <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                                   <SelectItem value="Cash">Cash</SelectItem>
-                               </SelectContent>
-                           </Select>
-                       </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="counterparty">{counterpartyLabel} *</Label>
-                        <Select onValueChange={setSelectedCounterpartyId} value={selectedCounterpartyId}>
-                            <SelectTrigger id="counterparty">
-                                <SelectValue placeholder={`Select a counterparty`} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {counterparties.map(c => (
-                                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                       <Label htmlFor="description">Description *</Label>
-                       <Input id="description" placeholder="e.g., Payment for invoice #123" value={description} onChange={e => setDescription(e.target.value)} />
-                   </div>
-                </div>
-                <div className="mt-6 flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={!isFormValid || isPending}>
-                        {isPending ? 'Saving...' : 'Save Payment'}
-                    </Button>
-                </div>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="walletId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Wallet *</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue placeholder="Select a wallet" /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {wallets.map(w => (
+                                                <SelectItem key={w.id} value={w.id}>{w.name} (${w.balance.toFixed(2)})</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="amount"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Amount *</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="e.g., 500.00" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="type"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Payment Method *</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                                                <SelectItem value="Cash">Cash</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                        <FormField
+                            control={form.control}
+                            name="counterpartyId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{counterpartyLabel} *</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue placeholder="Select a counterparty" /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {counterparties.map(c => (
+                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="description"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Description *</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., Payment for invoice #123" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <div className="mt-6 flex justify-end gap-2 pt-4">
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={isPending}>
+                                {isPending ? 'Saving...' : 'Save Payment'}
+                            </Button>
+                        </div>
+                    </form>
+                </Form>
             </SheetContent>
         </Sheet>
     )
 }
 
+const walletSchema = z.object({
+    name: z.string().min(1, "Wallet name is required."),
+    balance: z.coerce.number({ invalid_type_error: "Balance must be a number." }),
+});
+
+type WalletFormValues = z.infer<typeof walletSchema>;
+
 function AddWalletSheet({ onWalletCreated }: { onWalletCreated: () => void }) {
     const [open, setOpen] = useState(false);
-    const [name, setName] = useState('');
-    const [balance, setBalance] = useState('');
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
-    const isFormValid = useMemo(() => {
-        return name.trim() !== '' && balance.trim() !== '' && !isNaN(Number(balance));
-    }, [name, balance]);
+    const form = useForm<WalletFormValues>({
+        resolver: zodResolver(walletSchema),
+        defaultValues: {
+            name: "",
+            balance: 0,
+        },
+    });
 
-    const resetForm = () => {
-        setName('');
-        setBalance('');
-    };
+    useEffect(() => {
+        if (!open) {
+            form.reset();
+        }
+    }, [open, form]);
 
-    const handleSave = () => {
-        if (!isFormValid) return;
-
+    const handleSave = (values: WalletFormValues) => {
         startTransition(async () => {
-            const result = await createWallet({
-                name,
-                balance: Number(balance)
-            });
+            const result = await createWallet(values);
 
             if (result.success) {
                 onWalletCreated();
@@ -307,7 +366,7 @@ function AddWalletSheet({ onWalletCreated }: { onWalletCreated: () => void }) {
                     title: "Wallet Created",
                     description: `${result.data?.name} has been created successfully.`,
                 });
-                resetForm();
+                form.reset();
                 setOpen(false);
             } else {
                 toast({
@@ -337,23 +396,45 @@ function AddWalletSheet({ onWalletCreated }: { onWalletCreated: () => void }) {
                     </SheetDescription>
                 </SheetHeader>
                 <Separator className="my-4"/>
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="name">Wallet Name *</Label>
-                        <Input id="name" placeholder="e.g., Main Bank Account" value={name} onChange={e => setName(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="balance">Starting Balance *</Label>
-                        <Input id="balance" type="number" placeholder="e.g., 1000.00" value={balance} onChange={e => setBalance(e.target.value)} />
-                    </div>
-                </div>
-                 <div className="mt-6 flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => { setOpen(false); resetForm(); }}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={!isFormValid || isPending}>
-                        {isPending ? "Creating..." : "Create Wallet"}
-                    </Button>
-                </div>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Wallet Name *</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., Main Bank Account" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="balance"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Starting Balance *</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="e.g., 1000.00" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <div className="mt-6 flex justify-end gap-2 pt-4">
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={isPending}>
+                                {isPending ? "Creating..." : "Create Wallet"}
+                            </Button>
+                        </div>
+                    </form>
+                </Form>
             </SheetContent>
         </Sheet>
     )
 }
+
+    
