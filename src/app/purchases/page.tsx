@@ -26,7 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type PurchaseOrder, type Counterparty } from "@prisma/client";
-import { getPurchaseOrders, exportToCsv } from "@/lib/actions";
+import { getPurchaseOrders, exportToCsv, markPurchaseOrderAsReceived } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useDataFetch } from "@/hooks/use-data-fetch";
 
@@ -46,8 +46,9 @@ const getStatusVariant = (status: PurchaseOrder['status']) => {
 };
 
 export default function PurchasesPage() {
-  const { data: purchaseOrders } = useDataFetch(getPurchaseOrders, []);
+  const { data: purchaseOrders, refetch: refetchPurchaseOrders } = useDataFetch(getPurchaseOrders, []);
   const [isExporting, startExportTransition] = useTransition();
+  const [isReceiving, startReceiveTransition] = useTransition();
   const { toast } = useToast();
   
   const handleExport = () => {
@@ -76,6 +77,25 @@ export default function PurchasesPage() {
       }
     });
   };
+
+  const handleMarkAsReceived = (orderId: string) => {
+    startReceiveTransition(async () => {
+      const result = await markPurchaseOrderAsReceived(orderId);
+       if (result.success) {
+        toast({
+          title: "Order Received",
+          description: `Order ${result.data?.orderNumber} has been marked as received. Stock and payments updated.`,
+        });
+        refetchPurchaseOrders(); // Refetch to update the list
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Could not mark order as received.",
+          variant: "destructive",
+        });
+      }
+    })
+  }
 
   return (
     <div className="flex-1 p-4 md:p-8 pt-6">
@@ -153,7 +173,11 @@ export default function PurchasesPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem>View Details</DropdownMenuItem>
-                          <DropdownMenuItem>Mark as Received</DropdownMenuItem>
+                          {order.status === 'Pending' && (
+                             <DropdownMenuItem onClick={() => handleMarkAsReceived(order.id)} disabled={isReceiving}>
+                              Mark as Received
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-red-600">Cancel Order</DropdownMenuItem>
                         </DropdownMenuContent>

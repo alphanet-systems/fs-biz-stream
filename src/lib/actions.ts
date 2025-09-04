@@ -408,6 +408,69 @@ export async function createPurchaseOrder(input: PurchaseOrderInput): Promise<Se
     }
 }
 
+export async function markPurchaseOrderAsReceived(orderId: string): Promise<ServerActionResult<PurchaseOrder>> {
+    try {
+        const updatedOrder = await prisma.$transaction(async (tx) => {
+            // 1. Find the purchase order and its items
+            const order = await tx.purchaseOrder.findUnique({
+                where: { id: orderId },
+                include: { items: true },
+            });
+
+            if (!order || order.status !== 'Pending') {
+                throw new Error('Order not found or not in a receivable state.');
+            }
+
+            // 2. Update product stock levels
+            for (const item of order.items) {
+                await tx.product.update({
+                    where: { id: item.productId },
+                    data: { stock: { increment: item.quantity } },
+                });
+            }
+
+            // 3. Find the default bank wallet to create the expense
+            const bankWallet = await tx.wallet.findFirst({
+                where: { name: 'Main Bank Account' },
+            });
+            if (!bankWallet) {
+                throw new Error('Main Bank Account wallet not found. Cannot record expense.');
+            }
+
+            // 4. Create the expense payment record
+            await tx.payment.create({
+                data: {
+                    amount: -order.total, // Negative for an expense
+                    type: 'Purchase',
+                    status: 'Sent',
+                    description: `Payment for Purchase Order ${order.orderNumber}`,
+                    date: new Date(),
+                    counterpartyId: order.counterpartyId,
+                    walletId: bankWallet.id,
+                },
+            });
+
+            // 5. Update the purchase order status
+            const receivedOrder = await tx.purchaseOrder.update({
+                where: { id: orderId },
+                data: { status: 'Received' },
+            });
+
+            return receivedOrder;
+        });
+
+        revalidatePath('/purchases');
+        revalidatePath('/inventory');
+        revalidatePath('/payments');
+        return { success: true, data: updatedOrder };
+    } catch (error) {
+        console.error('Failed to mark purchase order as received:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+
 // Invoice Actions
 export async function getInvoices(): Promise<(Invoice & { counterparty: Counterparty })[]> {
     try {
