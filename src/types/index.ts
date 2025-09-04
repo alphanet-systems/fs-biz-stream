@@ -2,7 +2,9 @@
 import { z } from 'zod';
 import { type Payment as PrismaPayment, type Counterparty as PrismaCounterparty, type Product as PrismaProduct, type SalesOrder as PrismaSalesOrder, type Invoice as PrismaInvoice, type SalesOrderItem as PrismaSalesOrderItem } from "@prisma/client";
 
-export type Counterparty = PrismaCounterparty;
+export type Counterparty = Omit<PrismaCounterparty, 'types'> & {
+  types: string[];
+};
 export type Product = PrismaProduct;
 export type SalesOrder = PrismaSalesOrder;
 export type Invoice = PrismaInvoice;

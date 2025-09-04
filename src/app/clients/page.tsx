@@ -26,13 +26,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescri
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { type Counterparty } from "@prisma/client";
 import { createCounterparty, getCounterparties, exportToCsv } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ImportDialog } from "@/components/ImportDialog";
+import { type Counterparty as PrismaCounterparty } from '@prisma/client';
 
 type CounterpartyType = "CLIENT" | "VENDOR";
+type Counterparty = Omit<PrismaCounterparty, 'types'> & {
+  types: string[];
+};
 
 export default function CounterpartiesPage() {
   const [counterparties, setCounterparties] = useState<Counterparty[]>([]);

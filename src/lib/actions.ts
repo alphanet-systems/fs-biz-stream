@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import { type Counterparty, type Product, type Payment, type SalesOrder, type PurchaseOrder, type Wallet, type Invoice, type User } from '@prisma/client';
+import { type Counterparty as PrismaCounterparty, type Product, type Payment, type SalesOrder, type PurchaseOrder, type Wallet, type Invoice, type User } from '@prisma/client';
 import { jsonToCsv } from '@/ai/flows/export-flow';
 import { csvToJson } from '@/ai/flows/csv-to-json-flow';
 import { auth } from '@/auth';
@@ -12,6 +12,11 @@ type ServerActionResult<T> = {
   success: boolean;
   data?: T;
   error?: string;
+};
+
+// Custom Counterparty type for the application to handle the string-to-array conversion
+type Counterparty = Omit<PrismaCounterparty, 'types'> & {
+  types: string[];
 };
 
 // Setup Actions
@@ -55,28 +60,42 @@ export async function getCounterparties(type?: 'CLIENT' | 'VENDOR'): Promise<Cou
     const counterparties = await prisma.counterparty.findMany({
       where: type ? {
         types: {
-          has: type
+          contains: type
         }
       } : {},
       orderBy: {
         createdAt: 'desc',
       },
     });
-    return counterparties;
+    return counterparties.map(c => ({
+      ...c,
+      types: c.types.split(',').filter(t => t)
+    }));
   } catch (error) {
     console.error('Error fetching counterparties:', error);
     return [];
   }
 }
 
-type CounterpartyInput = Omit<Counterparty, 'id' | 'createdAt' | 'updatedAt'>;
+type CounterpartyInput = {
+    name: string;
+    email: string;
+    phone: string | null;
+    address: string | null;
+    types: string[];
+}
 
 export async function createCounterparty(data: CounterpartyInput): Promise<ServerActionResult<Counterparty>> {
   try {
-    const newCounterparty = await prisma.counterparty.create({ data });
+    const newCounterparty = await prisma.counterparty.create({ 
+      data: {
+        ...data,
+        types: data.types.join(','),
+      } 
+    });
     revalidatePath('/clients');
     revalidatePath('/setup');
-    return { success: true, data: newCounterparty };
+    return { success: true, data: { ...newCounterparty, types: newCounterparty.types.split(',').filter(t => t) }};
   } catch (error) {
     console.error('Error creating counterparty:', error);
     return { success: false, error: 'Failed to create counterparty.' };
@@ -151,7 +170,13 @@ export async function getPayments(): Promise<(Payment & { counterparty: Counterp
         date: 'desc',
       },
     });
-    return payments;
+    return payments.map(p => ({
+        ...p,
+        counterparty: {
+            ...p.counterparty,
+            types: p.counterparty.types.split(',').filter(t => t),
+        }
+    }));
   } catch (error)
  {
     console.error('Error fetching payments:', error);
@@ -211,7 +236,13 @@ export async function getSalesOrders(): Promise<(SalesOrder & { counterparty: Co
                 orderDate: 'desc',
             },
         });
-        return orders;
+        return orders.map(o => ({
+            ...o,
+            counterparty: {
+                ...o.counterparty,
+                types: o.counterparty.types.split(',').filter(t => t),
+            }
+        }));
     } catch (error) {
         console.error('Error fetching sales orders:', error);
         return [];
@@ -314,7 +345,13 @@ export async function getPurchaseOrders(): Promise<(PurchaseOrder & { counterpar
                 orderDate: 'desc',
             },
         });
-        return orders;
+        return orders.map(o => ({
+            ...o,
+            counterparty: {
+                ...o.counterparty,
+                types: o.counterparty.types.split(',').filter(t => t),
+            }
+        }));
     } catch (error) {
         console.error('Error fetching purchase orders:', error);
         return [];
@@ -382,7 +419,13 @@ orderBy: {
                 issueDate: 'desc',
             },
         });
-        return invoices;
+        return invoices.map(i => ({
+            ...i,
+            counterparty: {
+                ...i.counterparty,
+                types: i.counterparty.types.split(',').filter(t => t),
+            }
+        }));
     } catch (error) {
         console.error('Error fetching invoices:', error);
         return [];
@@ -408,7 +451,13 @@ export async function getInvoiceById(id: string) {
         });
         if (!invoice) return null;
 
-        return invoice;
+        return {
+            ...invoice,
+            counterparty: {
+                ...invoice.counterparty,
+                types: invoice.counterparty.types.split(',').filter(t => t),
+            }
+        };
 
     } catch (error) {
         console.error(`Error fetching invoice ${id}:`, error);
@@ -427,7 +476,7 @@ export async function exportToCsv(dataType: 'products' | 'counterparties' | 'sal
             break;
         case 'counterparties':
             const counterparties = await prisma.counterparty.findMany({ select: { name: true, email: true, phone: true, address: true, types: true } });
-            data = counterparties.map(c => ({ ...c, types: c.types.join(', ') }));
+            data = counterparties.map(c => ({ ...c, types: c.types })); // Keep as comma-separated string for export
             break;
         case 'sales-orders':
             const salesOrders = await prisma.salesOrder.findMany({ include: { counterparty: true }, orderBy: { orderDate: 'desc' } });
@@ -515,7 +564,7 @@ export async function importCounterpartiesFromCsv(csvString: string): Promise<Se
         email: c.email,
         phone: c.phone || null,
         address: c.address || null,
-        types: c.types.toUpperCase().split(',').map((s:string) => s.trim()).filter((t:string) => t === 'CLIENT' || t === 'VENDOR'),
+        types: c.types.toUpperCase().split(',').map((s:string) => s.trim()).filter((t:string) => t === 'CLIENT' || t === 'VENDOR').join(','),
     }));
 
     const result = await prisma.counterparty.createMany({

@@ -1,6 +1,5 @@
 
 import { type Counterparty, type Product, type SalesOrder, type CalendarEvent, type Payment, type ChartData } from "@/types";
-import { type Payment as PrismaPayment } from "@prisma/client";
 
 export const clients: Counterparty[] = [
   { id: "1", name: "Innovate Inc.", email: "contact@innovate.com", phone: "123-456-7890", address: "123 Tech Ave, Silicon Valley, CA", types: ['CLIENT'], createdAt: new Date(), updatedAt: new Date() },
