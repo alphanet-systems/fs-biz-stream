@@ -54,6 +54,63 @@ export async function createInitialWallets(): Promise<ServerActionResult<{ count
     }
 }
 
+// User Actions
+export async function getUsers(): Promise<User[]> {
+    try {
+        return await prisma.user.findMany({
+            orderBy: {
+                name: 'asc'
+            }
+        });
+    } catch (error) {
+        console.error("Error fetching users:", error);
+        return [];
+    }
+}
+
+type UserInput = {
+    name: string;
+    email: string;
+    role: 'ADMIN' | 'USER';
+}
+export async function inviteUser(data: UserInput): Promise<ServerActionResult<User>> {
+    try {
+        const newUser = await prisma.user.create({
+            data: {
+                ...data,
+                // In a real app, you would send an invite email and not set a password here.
+                // For this project, we'll use a default password.
+                password: "password",
+            },
+        });
+        revalidatePath('/users');
+        return { success: true, data: newUser };
+    } catch (error) {
+        console.error('Error inviting user:', error);
+        if ((error as any).code === 'P2002') {
+            return { success: false, error: 'A user with this email already exists.' };
+        }
+        return { success: false, error: 'Failed to invite user.' };
+    }
+}
+
+export async function deleteUser(id: string): Promise<ServerActionResult<{ id: string }>> {
+    const session = await auth();
+    if (id === session?.user?.id) {
+        return { success: false, error: "You cannot delete your own account." };
+    }
+
+    try {
+        await prisma.user.delete({ where: { id } });
+        revalidatePath('/users');
+        return { success: true, data: { id } };
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        return { success: false, error: 'Failed to delete user.' };
+    }
+}
+
+
 // Counterparty Actions
 export async function getCounterparties(type?: 'CLIENT' | 'VENDOR'): Promise<Counterparty[]> {
   try {
@@ -852,5 +909,7 @@ export async function importCounterpartiesFromCsv(csvString: string): Promise<Se
     return { success: false, error: `Failed to import counterparties. ${errorMessage}` };
   }
 }
+
+    
 
     

@@ -29,6 +29,7 @@ import {
   ChevronDown,
   Truck,
   Receipt,
+  Users2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +53,7 @@ const allMenuItems = [
   { href: "/payments", label: "Payments", icon: Banknote, roles: ['ADMIN'] },
   { href: "/pos", label: "Point of Sale", icon: ShoppingCart, roles: ['ADMIN', 'USER'] },
   { href: "/inventory", label: "Inventory", icon: Boxes, roles: ['ADMIN', 'USER'] },
+  { href: "/users", label: "Users", icon: Users2, roles: ['ADMIN'] },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -151,3 +153,5 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    

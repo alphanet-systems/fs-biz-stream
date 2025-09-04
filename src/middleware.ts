@@ -3,7 +3,7 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { type User } from '@prisma/client';
 
-const ADMIN_ONLY_PATHS = ['/purchases', '/payments'];
+const ADMIN_ONLY_PATHS = ['/purchases', '/payments', '/users'];
 
 export default auth((req) => {
   const user = req.auth?.user as User | undefined;
@@ -38,3 +38,5 @@ export const config = {
   // Match all routes except for static files, API routes, and the login page
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico|login).*)'],
 };
+
+    
