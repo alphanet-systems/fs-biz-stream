@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useEffect } from "react";
 import { PlusCircle, Search, File, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +23,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { createCounterparty, getCounterparties, exportToCsv } from "@/lib/actions";
@@ -32,11 +31,28 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ImportDialog } from "@/components/ImportDialog";
 import { useDataFetch } from "@/hooks/use-data-fetch";
 import { type Counterparty as PrismaCounterparty } from '@prisma/client';
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 
-type CounterpartyType = "CLIENT" | "VENDOR";
 type Counterparty = Omit<PrismaCounterparty, 'types'> & {
   types: string[];
 };
+
+const counterpartySchema = z.object({
+  name: z.string().min(1, "Name is required."),
+  email: z.string().email("Invalid email address."),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  types: z.array(z.string()).refine(value => value.length > 0, {
+    message: "At least one type (Client or Vendor) must be selected.",
+  }),
+});
+
+type CounterpartyFormValues = z.infer<typeof counterpartySchema>;
+
 
 export default function CounterpartiesPage() {
   const { data: counterparties, setData: setCounterparties, refetch: fetchCounterparties } = useDataFetch(getCounterparties, []);
@@ -166,44 +182,30 @@ export default function CounterpartiesPage() {
 }
 
 function AddCounterpartySheet({ onCounterpartyCreated }: { onCounterpartyCreated: (c: Counterparty) => void }) {
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [phone, setPhone] = useState('');
-    const [address, setAddress] = useState('');
-    const [types, setTypes] = useState<CounterpartyType[]>(['CLIENT']);
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
-    
     const { toast } = useToast();
-
-    const isFormValid = React.useMemo(() => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return name.trim() !== '' && emailRegex.test(email) && types.length > 0;
-    }, [name, email, types]);
-
-    const resetForm = () => {
-        setName('');
-        setEmail('');
-        setPhone('');
-        setAddress('');
-        setTypes(['CLIENT']);
-    };
     
-    const handleTypeChange = (type: CounterpartyType, checked: boolean) => {
-        setTypes(prev => {
-            if (checked) {
-                return [...prev, type];
-            } else {
-                return prev.filter(t => t !== type);
-            }
-        });
-    };
+    const form = useForm<CounterpartyFormValues>({
+        resolver: zodResolver(counterpartySchema),
+        defaultValues: {
+            name: "",
+            email: "",
+            phone: "",
+            address: "",
+            types: ["CLIENT"],
+        },
+    });
 
-    const handleSave = () => {
-        if (!isFormValid) return;
-
+    const handleSave = (values: CounterpartyFormValues) => {
         startTransition(async () => {
-          const result = await createCounterparty({ name, email, phone, address, types });
+          const result = await createCounterparty({
+            name: values.name,
+            email: values.email,
+            phone: values.phone || null,
+            address: values.address || null,
+            types: values.types,
+          });
           
           if (result.success && result.data) {
             onCounterpartyCreated(result.data);
@@ -211,7 +213,7 @@ function AddCounterpartySheet({ onCounterpartyCreated }: { onCounterpartyCreated
                 title: "Counterparty Saved",
                 description: `${result.data.name} has been successfully added.`,
             });
-            resetForm();
+            form.reset();
             setOpen(false);
           } else {
              toast({
@@ -222,6 +224,13 @@ function AddCounterpartySheet({ onCounterpartyCreated }: { onCounterpartyCreated
           }
         });
     };
+    
+    // Reset form when sheet is closed
+    useEffect(() => {
+        if (!open) {
+            form.reset();
+        }
+    }, [open, form]);
 
     return (
         <Sheet open={open} onOpenChange={setOpen}>
@@ -239,44 +248,115 @@ function AddCounterpartySheet({ onCounterpartyCreated }: { onCounterpartyCreated
                     </SheetDescription>
                 </SheetHeader>
                 <Separator className="my-4"/>
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>Counterparty Type *</Label>
-                        <div className="flex gap-4 items-center pt-2">
-                           <div className="flex items-center space-x-2">
-                                <Checkbox id="type-client" checked={types.includes('CLIENT')} onCheckedChange={(checked) => handleTypeChange('CLIENT', !!checked)} />
-                                <Label htmlFor="type-client">Client</Label>
-                           </div>
-                           <div className="flex items-center space-x-2">
-                                <Checkbox id="type-vendor" checked={types.includes('VENDOR')} onCheckedChange={(checked) => handleTypeChange('VENDOR', !!checked)} />
-                                <Label htmlFor="type-vendor">Vendor</Label>
-                           </div>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="types"
+                            render={() => (
+                                <FormItem>
+                                    <div className="mb-4">
+                                        <FormLabel className="text-base">Counterparty Type *</FormLabel>
+                                    </div>
+                                    <div className="flex gap-4 items-center">
+                                    {(['CLIENT', 'VENDOR'] as const).map((item) => (
+                                        <FormField
+                                            key={item}
+                                            control={form.control}
+                                            name="types"
+                                            render={({ field }) => {
+                                                return (
+                                                <FormItem
+                                                    key={item}
+                                                    className="flex flex-row items-start space-x-3 space-y-0"
+                                                >
+                                                    <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value?.includes(item)}
+                                                        onCheckedChange={(checked) => {
+                                                        return checked
+                                                            ? field.onChange([...field.value, item])
+                                                            : field.onChange(
+                                                                field.value?.filter(
+                                                                (value) => value !== item
+                                                                )
+                                                            )
+                                                        }}
+                                                    />
+                                                    </FormControl>
+                                                    <FormLabel className="font-normal capitalize">
+                                                        {item.toLowerCase()}
+                                                    </FormLabel>
+                                                </FormItem>
+                                                )
+                                            }}
+                                        />
+                                        ))}
+                                    </div>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Full Name / Company Name *</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., Innovate Inc." {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Email Address *</FormLabel>
+                                    <FormControl>
+                                        <Input type="email" placeholder="e.g., contact@innovate.com" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="phone"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Phone Number</FormLabel>
+                                    <FormControl>
+                                        <Input type="tel" placeholder="e.g., 123-456-7890" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="address"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Address</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., 123 Main St, Anytown, USA" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <div className="mt-6 flex justify-end gap-2 pt-4">
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={isPending}>
+                              {isPending ? "Saving..." : "Save"}
+                            </Button>
                         </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="name">Full Name / Company Name *</Label>
-                        <Input id="name" placeholder="e.g., Innovate Inc." value={name} onChange={e => setName(e.target.value)} />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="email">Email Address *</Label>
-                        <Input id="email" type="email" placeholder="e.g., contact@innovate.com" value={email} onChange={e => setEmail(e.target.value)} />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <Input id="phone" type="tel" placeholder="e.g., 123-456-7890" value={phone} onChange={e => setPhone(e.target.value)} />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="address">Address</Label>
-                        <Input id="address" placeholder="e.g., 123 Main St, Anytown, USA" value={address} onChange={e => setAddress(e.target.value)} />
-                    </div>
-                </div>
-                <div className="mt-6 flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => { setOpen(false); resetForm(); }}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={!isFormValid || isPending}>
-                      {isPending ? "Saving..." : "Save"}
-                    </Button>
-                </div>
+                    </form>
+                </Form>
             </SheetContent>
         </Sheet>
     )
