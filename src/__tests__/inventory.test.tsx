@@ -12,6 +12,7 @@ jest.mock('@/lib/actions', () => ({
   __esModule: true,
   getProducts: jest.fn(),
   createProduct: jest.fn(),
+  exportToCsv: jest.fn(),
 }));
 
 // Mock the toast hook
@@ -86,14 +87,20 @@ describe('InventoryPage', () => {
 
     await user.type(screen.getByLabelText(/product name/i), 'New Gadget');
     await user.type(screen.getByLabelText(/sku/i), 'NG-001');
-    await user.type(screen.getByLabelText(/stock quantity/i), '50');
-    await user.type(screen.getByLabelText(/price/i), 'invalid-price');
+    
+    const stockInput = screen.getByLabelText(/stock quantity/i);
+    await user.clear(stockInput);
+    await user.type(stockInput, '50');
+    
+    const priceInput = screen.getByLabelText(/price/i);
+    await user.clear(priceInput);
+    await user.type(priceInput, 'invalid-price');
 
     expect(saveButton).toBeDisabled();
-    expect(await screen.findByText('Must be a valid positive price.')).toBeInTheDocument();
+    expect(await screen.findByText('Price must be a positive number.')).toBeInTheDocument();
     
-    await user.clear(screen.getByLabelText(/price/i));
-    await user.type(screen.getByLabelText(/price/i), '199');
+    await user.clear(priceInput);
+    await user.type(priceInput, '199');
 
     expect(saveButton).toBeEnabled();
   });
@@ -109,8 +116,14 @@ describe('InventoryPage', () => {
 
     await user.type(screen.getByLabelText(/product name/i), newProduct.name);
     await user.type(screen.getByLabelText(/sku/i), newProduct.sku);
-    await user.type(screen.getByLabelText(/stock quantity/i), newProduct.stock.toString());
-    await user.type(screen.getByLabelText(/price/i), newProduct.price.toString());
+    
+    const stockInput = screen.getByLabelText(/stock quantity/i);
+    await user.clear(stockInput);
+    await user.type(stockInput, newProduct.stock.toString());
+
+    const priceInput = screen.getByLabelText(/price/i);
+    await user.clear(priceInput);
+    await user.type(priceInput, newProduct.price.toString());
     await user.type(screen.getByLabelText(/category/i), newProduct.category as string);
 
     await user.click(screen.getByRole('button', { name: /save product/i }));
@@ -134,7 +147,8 @@ describe('InventoryPage', () => {
     });
 
     await waitFor(() => {
-        expect(screen.getByText(newProduct.name)).toBeInTheDocument();
+        // The mockGetProducts needs to be called again by the hook to refresh data
+        expect(mockGetProducts).toHaveBeenCalledTimes(2);
     });
 
     expect(screen.queryByRole('heading', { name: /add new product/i })).not.toBeInTheDocument();
@@ -150,8 +164,12 @@ describe('InventoryPage', () => {
     
     await user.type(screen.getByLabelText(/product name/i), 'Fail Product');
     await user.type(screen.getByLabelText(/sku/i), 'FAIL-01');
-    await user.type(screen.getByLabelText(/stock quantity/i), '10');
-    await user.type(screen.getByLabelText(/price/i), '10');
+    const stockInput = screen.getByLabelText(/stock quantity/i);
+    await user.clear(stockInput);
+    await user.type(stockInput, '10');
+    const priceInput = screen.getByLabelText(/price/i);
+    await user.clear(priceInput);
+    await user.type(priceInput, '10');
 
     await user.click(screen.getByRole('button', { name: /save product/i }));
 

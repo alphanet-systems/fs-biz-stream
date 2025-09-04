@@ -37,7 +37,7 @@ const mockCreateSalesOrder = actions.createSalesOrder as jest.Mock;
 const mockUseToast = useToast as jest.Mock;
 const mockToast = jest.fn();
 
-const mockClients: Counterparty[] = [
+const mockClients: (Omit<Counterparty, 'types'> & { types: string[] })[] = [
   { id: '1', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', address: '123 Tech Ave', types: ['CLIENT'], createdAt: new Date(), updatedAt: new Date() },
 ];
 const mockProducts: Product[] = [
@@ -68,12 +68,9 @@ describe('NewSalePage', () => {
   it('allows selecting a client', async () => {
     render(<NewSalePage />);
     const user = userEvent.setup();
-
-    const clientSelect = await screen.findByRole('combobox');
-    await user.click(clientSelect);
     
-    const clientOption = await screen.findByText('Innovate Inc.');
-    await user.click(clientOption);
+    await user.click(screen.getByRole('button', { name: /select a client/i }));
+    await user.click(await screen.findByText('Innovate Inc.'));
 
     expect(await screen.findByText('Innovate Inc.')).toBeInTheDocument();
   });
@@ -102,13 +99,9 @@ describe('NewSalePage', () => {
     const user = userEvent.setup();
     
     await user.click(screen.getByRole('button', { name: /add item/i }));
-
-    const productSelector = screen.getByRole('button', { name: 'Select product...' });
-    await user.click(productSelector);
-
-    const productOption = await screen.findByText(/Ergo-Comfort Keyboard/);
-    await user.click(productOption);
-
+    await user.click(screen.getByRole('button', { name: /select product/i }));
+    await user.click(await screen.findByText(/ergo-comfort keyboard/i));
+    
     // Using findBy queries to wait for state updates
     const quantityInput = await screen.findByDisplayValue('1');
     const priceInput = await screen.findByDisplayValue('79.99');
@@ -125,39 +118,39 @@ describe('NewSalePage', () => {
     // Add first item
     await user.click(screen.getByRole('button', { name: /add item/i }));
     await user.click(screen.getByRole('button', { name: /select product/i }));
-    await user.click(await screen.findByText(/Ergo-Comfort Keyboard/)); // 79.99
+    await user.click(await screen.findByText(/ergo-comfort keyboard/i)); // 79.99
 
     // Add second item
     await user.click(screen.getByRole('button', { name: /add item/i }));
-    // The previously added item now shows its name, so the new one is 'Select product...'
-    const productSelectors = screen.getAllByRole('button', { name: /select product/i });
-    await user.click(productSelectors[productSelectors.length - 1]);
-    await user.click(await screen.findByText(/HD Webcam 1080p/)); // 49.99
+    await user.click(screen.getAllByRole('button', { name: /select product/i })[1]);
+    await user.click(await screen.findByText(/hd webcam 1080p/i)); // 49.99
 
     // Subtotal = 79.99 + 49.99 = 129.98
-    // Tax = 129.98 * 0.1 = 12.998
-    // Total = 129.98 + 12.998 = 142.978
+    // Tax = 129.98 * 0.20 = 25.996
+    // Total = 129.98 + 25.996 = 155.976
     
-    expect(screen.getByText('$129.98')).toBeInTheDocument(); // subtotal
-    expect(screen.getByText('$13.00')).toBeInTheDocument(); // tax (rounded)
-    expect(screen.getByText('$142.98')).toBeInTheDocument(); // total (rounded)
+    await waitFor(() => {
+      expect(screen.getByText('$129.98')).toBeInTheDocument(); // subtotal
+      expect(screen.getByText('$26.00')).toBeInTheDocument(); // tax (rounded)
+      expect(screen.getByText('$155.98')).toBeInTheDocument(); // total (rounded)
+    });
   });
 
   it('successfully creates a sales order and redirects', async () => {
-    const newOrder: SalesOrder = { id: 'so-new', orderNumber: 'SO-123456', counterpartyId: '1', orderDate: new Date(), status: 'Pending', subtotal: 79.99, tax: 8, total: 87.99, createdAt: new Date(), updatedAt: new Date() };
+    const newOrder: SalesOrder = { id: 'so-new', orderNumber: 'SO-123456', clientId: '1', orderDate: new Date(), status: 'Pending', subtotal: 79.99, tax: 16, total: 95.99, generateInvoice: false, createdAt: new Date(), updatedAt: new Date() };
     mockCreateSalesOrder.mockResolvedValue({ success: true, data: newOrder });
 
     render(<NewSalePage />);
     const user = userEvent.setup();
 
     // Select client
-    await user.click(await screen.findByRole('combobox'));
+    await user.click(screen.getByRole('button', { name: /select a client/i }));
     await user.click(await screen.findByText('Innovate Inc.'));
 
     // Add product
     await user.click(screen.getByRole('button', { name: /add item/i }));
     await user.click(screen.getByRole('button', { name: /select product/i }));
-    await user.click(await screen.findByText(/Ergo-Comfort Keyboard/));
+    await user.click(await screen.findByText(/ergo-comfort keyboard/i));
 
     const createButton = screen.getByRole('button', { name: /create sales order/i });
     expect(createButton).toBeEnabled();
@@ -167,10 +160,13 @@ describe('NewSalePage', () => {
       expect(mockCreateSalesOrder).toHaveBeenCalledWith({
         counterpartyId: '1',
         orderDate: expect.any(Date),
+        generateInvoice: false,
         items: [{
           productId: 'p1',
           quantity: 1,
           unitPrice: 79.99,
+          stock: 10,
+          description: 'Ergo-Comfort Keyboard'
         }],
       });
     });
@@ -194,13 +190,13 @@ describe('NewSalePage', () => {
      const user = userEvent.setup();
  
      // Select client
-     await user.click(await screen.findByRole('combobox'));
+     await user.click(screen.getByRole('button', { name: /select a client/i }));
      await user.click(await screen.findByText('Innovate Inc.'));
  
      // Add product
      await user.click(screen.getByRole('button', { name: /add item/i }));
      await user.click(screen.getByRole('button', { name: /select product/i }));
-     await user.click(await screen.findByText(/Ergo-Comfort Keyboard/));
+     await user.click(await screen.findByText(/ergo-comfort keyboard/i));
 
      await user.click(screen.getByRole('button', { name: /create sales order/i }));
     
@@ -212,5 +208,4 @@ describe('NewSalePage', () => {
        });
      });
   });
-
 });

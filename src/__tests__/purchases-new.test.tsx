@@ -37,7 +37,7 @@ const mockCreatePurchaseOrder = actions.createPurchaseOrder as jest.Mock;
 const mockUseToast = useToast as jest.Mock;
 const mockToast = jest.fn();
 
-const mockVendors: Counterparty[] = [
+const mockVendors: (Omit<Counterparty, 'types'> & { types: string[] })[] = [
   { id: '1', name: 'Vendor A', email: 'contact@vendora.com', phone: '123-456-7890', address: '123 Tech Ave', types: ['VENDOR'], createdAt: new Date(), updatedAt: new Date() },
 ];
 const mockProducts: Product[] = [
@@ -71,12 +71,11 @@ describe('NewPurchasePage', () => {
 
     await user.click(screen.getByRole('button', { name: /add item/i }));
     
-    const productSelector = screen.getByRole('button', { name: 'Select product...' });
-    await user.click(productSelector);
-
-    const productOption = await screen.findByText(/Ergo-Comfort Keyboard/);
-    await user.click(productOption);
-
+    // The product selector is a button with text "Select product..."
+    await user.click(screen.getByRole('button', { name: /select product/i }));
+    await user.click(await screen.findByText(/ergo-comfort keyboard/i));
+    
+    // Check if the inputs are populated
     const quantityInput = await screen.findByDisplayValue('1');
     const priceInput = await screen.findByDisplayValue('79.99');
     
@@ -86,22 +85,20 @@ describe('NewPurchasePage', () => {
   });
   
   it('successfully creates a purchase order and redirects', async () => {
-    const newOrder: PurchaseOrder = { id: 'po-new', orderNumber: 'PO-123456', counterpartyId: '1', orderDate: new Date(), status: 'Pending', subtotal: 79.99, tax: 8, total: 87.99, createdAt: new Date(), updatedAt: new Date() };
+    const newOrder: PurchaseOrder = { id: 'po-new', orderNumber: 'PO-123456', counterpartyId: '1', orderDate: new Date(), status: 'Pending', subtotal: 79.99, tax: 16, total: 95.99, createdAt: new Date(), updatedAt: new Date() };
     mockCreatePurchaseOrder.mockResolvedValue({ success: true, data: newOrder });
 
     render(<NewPurchasePage />);
     const user = userEvent.setup();
 
     // Select vendor
-    const vendorSelect = await screen.findByRole('combobox');
-    await user.click(vendorSelect);
-    const vendorOption = await screen.findByText('Vendor A');
-    await user.click(vendorOption);
+    await user.click(screen.getByRole('button', {name: /select a vendor/i}));
+    await user.click(await screen.findByText('Vendor A'));
 
     // Add product
     await user.click(screen.getByRole('button', { name: /add item/i }));
     await user.click(screen.getByRole('button', { name: /select product/i }));
-    await user.click(await screen.findByText(/Ergo-Comfort Keyboard/));
+    await user.click(await screen.findByText(/ergo-comfort keyboard/i));
 
     const createButton = screen.getByRole('button', { name: /create purchase order/i });
     expect(createButton).toBeEnabled();
@@ -115,6 +112,7 @@ describe('NewPurchasePage', () => {
           productId: 'p1',
           quantity: 1,
           unitPrice: 79.99,
+          description: 'Ergo-Comfort Keyboard' // Added by the form logic
         }],
       });
     });
@@ -138,14 +136,13 @@ describe('NewPurchasePage', () => {
      const user = userEvent.setup();
  
      // Select vendor and add product
-     const vendorSelect = await screen.findByRole('combobox');
-     await user.click(vendorSelect);
-     await user.click(await screen.findByText('Vendor A'));
-     await user.click(screen.getByRole('button', { name: /add item/i }));
-     await user.click(screen.getByRole('button', { name: /select product/i }));
-     await user.click(await screen.findByText(/Ergo-Comfort Keyboard/));
+    await user.click(screen.getByRole('button', {name: /select a vendor/i}));
+    await user.click(await screen.findByText('Vendor A'));
+    await user.click(screen.getByRole('button', { name: /add item/i }));
+    await user.click(screen.getByRole('button', { name: /select product/i }));
+    await user.click(await screen.findByText(/ergo-comfort keyboard/i));
 
-     await user.click(screen.getByRole('button', { name: /create purchase order/i }));
+    await user.click(screen.getByRole('button', { name: /create purchase order/i }));
     
      await waitFor(() => {
        expect(mockToast).toHaveBeenCalledWith({

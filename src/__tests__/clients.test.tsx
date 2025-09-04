@@ -1,17 +1,23 @@
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CounterpartiesPage from '@/app/clients/page';
 import * as actions from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
-import { type Counterparty } from '@prisma/client';
+import { type Counterparty as PrismaCounterparty } from '@prisma/client';
+
+// Custom type for tests to match component expectations
+type Counterparty = Omit<PrismaCounterparty, 'types'> & {
+  types: string[];
+};
 
 // Mock the server actions
 jest.mock('@/lib/actions', () => ({
   __esModule: true,
   getCounterparties: jest.fn(),
   createCounterparty: jest.fn(),
+  exportToCsv: jest.fn(),
 }));
 
 // Mock the toast hook
@@ -57,7 +63,7 @@ describe('CounterpartiesPage', () => {
       expect(screen.getByText('Innovate Inc.')).toBeInTheDocument();
     });
 
-    const searchInput = screen.getByLabelText('Search counterparties');
+    const searchInput = screen.getByPlaceholderText('Search by name or email...');
     await userEvent.type(searchInput, 'Innovate');
 
     expect(screen.getByText('Innovate Inc.')).toBeInTheDocument();
@@ -74,57 +80,52 @@ describe('CounterpartiesPage', () => {
     const saveButton = screen.getByRole('button', { name: /save/i });
     expect(saveButton).toBeDisabled();
 
-    const nameInput = screen.getByLabelText(/full name/i);
-    await user.type(nameInput, 'New Counterparty');
-
-    const emailInput = screen.getByLabelText(/email address/i);
-    await user.type(emailInput, 'new@party.com');
+    await user.type(screen.getByLabelText(/full name/i), 'New Counterparty');
+    await user.type(screen.getByLabelText(/email address/i), 'new@party.com');
 
     // Default type 'CLIENT' is checked, so form should be valid
     expect(saveButton).toBeEnabled();
 
     // Test invalid email
+    const emailInput = screen.getByLabelText(/email address/i);
     await user.clear(emailInput);
     await user.type(emailInput, 'invalid-email');
     expect(saveButton).toBeDisabled();
+    expect(await screen.findByText('Invalid email address.')).toBeInTheDocument();
     
     // Test unchecking all types
     await user.clear(emailInput);
     await user.type(emailInput, 'new@party.com');
     expect(saveButton).toBeEnabled();
-    const clientCheckbox = screen.getByLabelText('Client');
-    await user.click(clientCheckbox);
+
+    const clientCheckbox = screen.getByLabelText(/client/i);
+    await user.click(clientCheckbox); // Uncheck client
+
     expect(saveButton).toBeDisabled();
+    expect(await screen.findByText('At least one type (Client or Vendor) must be selected.')).toBeInTheDocument();
   });
 
   it('successfully creates a new counterparty and closes the sheet', async () => {
     const newCounterparty: Counterparty = { id: '3', name: 'New Client', email: 'new@client.com', phone: '111-222-3333', address: '1 Test St', types: ['CLIENT', 'VENDOR'], createdAt: new Date(), updatedAt: new Date() };
     mockCreateCounterparty.mockResolvedValue({ success: true, data: newCounterparty });
     
+    // Setup to refetch data
+    mockGetCounterparties.mockResolvedValueOnce(mockCounterparties).mockResolvedValueOnce([...mockCounterparties, newCounterparty]);
+
     render(<CounterpartiesPage />);
     const user = userEvent.setup();
 
-    const addCounterpartyButton = screen.getByRole('button', { name: /add new/i });
-    await user.click(addCounterpartyButton);
+    await user.click(screen.getByRole('button', { name: /add new/i }));
 
-    const nameInput = screen.getByLabelText(/full name/i);
-    await user.type(nameInput, newCounterparty.name);
-
-    const emailInput = screen.getByLabelText(/email address/i);
-    await user.type(emailInput, newCounterparty.email);
-
-    const phoneInput = screen.getByLabelText(/phone number/i);
-    await user.type(phoneInput, newCounterparty.phone as string);
-    
-    const addressInput = screen.getByLabelText(/address/i);
-    await user.type(addressInput, newCounterparty.address as string);
+    await user.type(screen.getByLabelText(/full name/i), newCounterparty.name);
+    await user.type(screen.getByLabelText(/email address/i), newCounterparty.email);
+    await user.type(screen.getByLabelText(/phone number/i), newCounterparty.phone as string);
+    await user.type(screen.getByLabelText(/address/i), newCounterparty.address as string);
 
     // Make it a vendor too
-    const vendorCheckbox = screen.getByLabelText('Vendor');
-    await user.click(vendorCheckbox);
+    await user.click(screen.getByLabelText('Vendor'));
 
-    const saveButton = screen.getByRole('button', { name: /save/i });
-    await user.click(saveButton);
+    await user.click(screen.getByRole('button', { name: /save/i }));
 
     await waitFor(() => {
       expect(mockCreateCounterparty).toHaveBeenCalledWith({
@@ -144,6 +145,8 @@ describe('CounterpartiesPage', () => {
     });
 
     await waitFor(() => {
+        // The data is refetched by the hook, so the new counterparty should be visible
+        expect(mockGetCounterparties).toHaveBeenCalledTimes(2);
         expect(screen.getByText(newCounterparty.name)).toBeInTheDocument();
     });
 
@@ -172,5 +175,3 @@ describe('CounterpartiesPage', () => {
     });
   });
 });
-
-    

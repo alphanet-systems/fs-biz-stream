@@ -8,7 +8,10 @@ import { useToast } from '@/hooks/use-toast';
 import { type Counterparty, type Payment, type Wallet } from '@prisma/client';
 
 // Custom type for the test, as the component expects related objects within the payment
-type PaymentWithRelations = Payment & { counterparty: Counterparty; wallet: Wallet };
+type PaymentWithRelations = Payment & { 
+    counterparty: Omit<Counterparty, 'types'> & { types: string[] }; 
+    wallet: Wallet 
+};
 
 // Mock server actions
 jest.mock('@/lib/actions', () => ({
@@ -35,7 +38,7 @@ const mockGetWallets = actions.getWallets as jest.Mock;
 const mockUseToast = useToast as jest.Mock;
 const mockToast = jest.fn();
 
-const mockCounterparties: Counterparty[] = [
+const mockCounterparties: (Omit<Counterparty, 'types'> & { types: string[] })[] = [
   { id: '1', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', address: '123 Tech Ave', types: ['CLIENT'], createdAt: new Date(), updatedAt: new Date() },
   { id: '2', name: 'Solutions Co.', email: 'support@solutions.co', phone: '234-567-8901', address: '456 Business Blvd', types: ['CLIENT', 'VENDOR'], createdAt: new Date(), updatedAt: new Date() },
 ];
@@ -106,7 +109,6 @@ describe('PaymentsPage', () => {
   });
   
   it('opens the add income sheet and creates a new income payment', async () => {
-    // This test now needs to handle selecting a wallet
     render(<PaymentsPage />);
     const user = userEvent.setup();
 
@@ -116,22 +118,21 @@ describe('PaymentsPage', () => {
     const addIncomeButton = screen.getByRole('button', { name: /add income/i });
     await user.click(addIncomeButton);
     
-    // Wait for data to load in the sheet
-    await waitFor(() => expect(screen.getByText('Add Income')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Add Income' })).toBeInTheDocument());
     expect(await screen.findByText('Select a wallet')).toBeInTheDocument();
 
     // Fill form
     // Select a wallet
     await user.click(screen.getByRole('button', { name: /select a wallet/i }));
-    const mainBankAccountOption = await screen.findByText(/Main Bank Account/);
-    await user.click(mainBankAccountOption);
+    await user.click(await screen.findByText(/Main Bank Account/));
     
-    await user.type(screen.getByLabelText('Amount *'), '500');
+    const amountInput = screen.getByLabelText('Amount *');
+    await user.clear(amountInput);
+    await user.type(amountInput, '500');
     
     // Select a counterparty
     await user.click(screen.getByRole('button', { name: /select a counterparty/i }));
-    const innovateOption = await screen.findByText('Innovate Inc.');
-    await user.click(innovateOption);
+    await user.click(await screen.findByText('Innovate Inc.'));
 
     await user.type(screen.getByLabelText('Description *'), 'New Income');
 
@@ -142,7 +143,7 @@ describe('PaymentsPage', () => {
     await waitFor(() => {
       expect(mockCreatePayment).toHaveBeenCalledWith({
         amount: 500,
-        type: 'Bank Transfer',
+        type: 'Bank Transfer', // default value
         status: 'Received',
         description: 'New Income',
         counterpartyId: '1',
