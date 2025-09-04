@@ -42,22 +42,24 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSession, signOut } from "next-auth/react";
 
-
-const menuItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/calendar", label: "Calendar", icon: Calendar },
-  { href: "/clients", label: "Counterparties", icon: Users },
-  { href: "/sales", label: "Sales", icon: FileText },
-  { href: "/invoices", label: "Invoices", icon: Receipt },
-  { href: "/purchases", label: "Purchases", icon: Truck },
-  { href: "/payments", label: "Payments", icon: Banknote },
-  { href: "/pos", label: "Point of Sale", icon: ShoppingCart },
-  { href: "/inventory", label: "Inventory", icon: Boxes },
+const allMenuItems = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ['ADMIN', 'USER'] },
+  { href: "/calendar", label: "Calendar", icon: Calendar, roles: ['ADMIN', 'USER'] },
+  { href: "/clients", label: "Counterparties", icon: Users, roles: ['ADMIN', 'USER'] },
+  { href: "/sales", label: "Sales", icon: FileText, roles: ['ADMIN', 'USER'] },
+  { href: "/invoices", label: "Invoices", icon: Receipt, roles: ['ADMIN', 'USER'] },
+  { href: "/purchases", label: "Purchases", icon: Truck, roles: ['ADMIN'] },
+  { href: "/payments", label: "Payments", icon: Banknote, roles: ['ADMIN'] },
+  { href: "/pos", label: "Point of Sale", icon: ShoppingCart, roles: ['ADMIN', 'USER'] },
+  { href: "/inventory", label: "Inventory", icon: Boxes, roles: ['ADMIN', 'USER'] },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const userRole = session?.user?.role;
+
+  const menuItems = allMenuItems.filter(item => userRole && item.roles.includes(userRole));
 
   return (
     <SidebarProvider>
