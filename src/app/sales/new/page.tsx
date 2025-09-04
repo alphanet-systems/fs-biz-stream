@@ -228,7 +228,7 @@ export default function NewSalePage() {
                             render={({ field }) => (
                                <FormItem>
                                     <FormControl>
-                                        <Input type="number" {...field} min="0" disabled={!watchedItems[index]?.productId} />
+                                        <Input type="number" {...field} min="0" step="0.01" disabled={!watchedItems[index]?.productId} />
                                     </FormControl>
                                     <FormMessage />
                                </FormItem>
