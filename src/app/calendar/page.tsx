@@ -35,6 +35,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from 'lucide-react';
 
 
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -153,7 +155,7 @@ export default function CalendarPage() {
                   </span>
                   <div className="flex-1 overflow-y-auto text-xs mt-1 space-y-1">
                     {eventsForDay.map(event => (
-                      <div key={event.id} onClick={() => handleEventClick(event)} className="bg-primary/20 text-primary-foreground p-1 rounded-md truncate cursor-pointer hover:bg-primary/30 relative group">
+                      <div key={event.id} onClick={() => handleEventClick(event)} className="bg-primary/20 text-primary p-1 rounded-md truncate cursor-pointer hover:bg-primary/30 relative group">
                         <span className="font-bold">{format(parseISO(event.start as any), 'h:mm a')}</span> {event.title}
                          <Button variant="ghost" size="icon" className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100" onClick={(e) => handleDeletePrompt(e, event.id)}>
                             <X className="h-3 w-3" />
@@ -323,22 +325,30 @@ function AddEventDialog({ onEventAdded }: { onEventAdded: () => void }) {
                 control={form.control}
                 name="counterpartyId"
                 render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                     <FormLabel>Link to Client (Optional)</FormLabel>
                     <Popover>
                         <PopoverTrigger asChild>
                             <FormControl>
                                <Button variant="outline" role="combobox" className="w-full justify-between">
                                     {field.value ? allClients.find(c => c.id === field.value)?.name : "Select a client"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                </Button>
                             </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                            {allClients.map(client => (
-                                <Button key={client.id} variant="ghost" className="w-full justify-start" onClick={() => field.onChange(client.id)}>
-                                    {client.name}
-                                </Button>
-                            ))}
+                          <Command>
+                            <CommandInput placeholder="Search clients..." />
+                            <CommandEmpty>No client found.</CommandEmpty>
+                            <CommandGroup>
+                                {allClients.map(client => (
+                                    <CommandItem key={client.id} onSelect={() => field.onChange(client.id)}>
+                                        <Check className={cn("mr-2 h-4 w-4", client.id === field.value ? "opacity-100" : "opacity-0")} />
+                                        {client.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </Command>
                         </PopoverContent>
                     </Popover>
                     <FormMessage />
@@ -371,3 +381,5 @@ function AddEventDialog({ onEventAdded }: { onEventAdded: () => void }) {
     </Dialog>
   )
 }
+
+    
