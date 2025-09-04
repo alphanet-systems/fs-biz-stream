@@ -54,39 +54,34 @@ export function ImportDialog({ importType, onImportSuccess }: { importType: Impo
         if (!file) return;
 
         startImportTransition(() => {
-            Papa.parse(file, {
-                header: false,
-                skipEmptyLines: true,
-                complete: async (results) => {
-                    // Pass the raw CSV string to the backend
-                    const csvString = Papa.unparse(results.data);
-                    const importAction = importType === 'products' ? importProductsFromCsv : importCounterpartiesFromCsv;
-                    const response = await importAction(csvString);
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const csvString = e.target?.result as string;
+                if (!csvString) {
+                    toast({ title: "Error reading file", variant: "destructive" });
+                    return;
+                }
+                
+                const importAction = importType === 'products' ? importProductsFromCsv : importCounterpartiesFromCsv;
+                const response = await importAction(csvString);
 
-                    if (response.success) {
-                        toast({
-                            title: "Import Successful",
-                            description: `${response.data?.count || 0} ${importType} have been imported.`,
-                        });
-                        onImportSuccess();
-                        setOpen(false);
-                        setFile(null);
-                    } else {
-                        toast({
-                            title: "Import Failed",
-                            description: response.error || "An unknown error occurred.",
-                            variant: "destructive",
-                        });
-                    }
-                },
-                error: (error) => {
+                if (response.success) {
                     toast({
-                        title: "Error Parsing File",
-                        description: error.message,
+                        title: "Import Successful",
+                        description: `${response.data?.count || 0} ${importType} have been imported.`,
+                    });
+                    onImportSuccess();
+                    setOpen(false);
+                    setFile(null);
+                } else {
+                    toast({
+                        title: "Import Failed",
+                        description: response.error || "An unknown error occurred.",
                         variant: "destructive",
                     });
                 }
-            });
+            };
+            reader.readAsText(file);
         });
     };
 
@@ -102,7 +97,7 @@ export function ImportDialog({ importType, onImportSuccess }: { importType: Impo
                 <DialogHeader>
                     <DialogTitle>Import {importType === 'products' ? 'Products' : 'Counterparties'} from CSV</DialogTitle>
                     <DialogDescription>
-                        Upload a CSV file to bulk-import your data. Download the template to ensure your data is in the correct format.
+                        Upload a CSV file to bulk-import your data. Download the template to see the required format.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
