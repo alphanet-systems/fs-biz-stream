@@ -46,7 +46,9 @@ async function main() {
   if (!posClient) {
       posClient = await prisma.counterparty.create({
           data: {
-              id: "1", // Hardcode ID for reliable access in POS
+              // We can still use a predictable ID if needed elsewhere, 
+              // but the check is now on the unique name.
+              id: "1", 
               name: posClientName,
               email: 'pos@example.com',
               types: 'CLIENT',
