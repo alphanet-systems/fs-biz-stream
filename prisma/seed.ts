@@ -42,10 +42,11 @@ async function main() {
 
   // Create default 'Walk-in Customer' counterparty for POS
   const posClientName = 'Walk-in Customer';
-  let posClient = await prisma.counterparty.findFirst({ where: { name: posClientName }});
+  let posClient = await prisma.counterparty.findUnique({ where: { name: posClientName }});
   if (!posClient) {
       posClient = await prisma.counterparty.create({
           data: {
+              id: "1", // Hardcode ID for reliable access in POS
               name: posClientName,
               email: 'pos@example.com',
               types: 'CLIENT',

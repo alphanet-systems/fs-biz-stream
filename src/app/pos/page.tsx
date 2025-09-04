@@ -31,6 +31,7 @@ export default function PosPage() {
     const { toast } = useToast();
 
     const addToCart = (product: Product) => {
+        if (product.stock === 0) return; // Prevent adding out-of-stock items
         setCart(prevCart => {
             const existingItem = prevCart.find(item => item.id === product.id);
             if (existingItem) {

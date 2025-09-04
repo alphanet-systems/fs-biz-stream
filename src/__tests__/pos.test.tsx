@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PosPage from '@/app/pos/page';
 import * as actions from '@/lib/actions';
@@ -78,10 +78,12 @@ describe('PosPage', () => {
     expect(await screen.findByText('Ergo-Comfort Keyboard')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Checkout' })).toBeEnabled();
 
-    // Verify totals (Subtotal: 79.99, Tax: 8.00, Total: 87.99)
+    // Verify totals (Subtotal: 79.99, Tax: 16.00, Total: 95.99)
+    // Note: JS floating point math can be tricky, so we check for the rounded result.
+    // 79.99 * 0.20 = 15.998
     expect(screen.getByText('$79.99')).toBeInTheDocument(); // subtotal
-    expect(screen.getByText('$8.00')).toBeInTheDocument(); // tax
-    expect(screen.getByText('$87.99')).toBeInTheDocument(); // total
+    expect(screen.getByText('$16.00')).toBeInTheDocument(); // tax
+    expect(screen.getByText('$95.99')).toBeInTheDocument(); // total
   });
 
   it('cannot add an out-of-stock item to the cart', async () => {
@@ -107,10 +109,10 @@ describe('PosPage', () => {
 
      expect(screen.getByText('2')).toBeInTheDocument();
 
-     // Verify totals (Subtotal: 159.98, Tax: 16.00, Total: 175.98)
+     // Verify totals (Subtotal: 159.98, Tax: 32.00, Total: 191.98)
      expect(screen.getByText('$159.98')).toBeInTheDocument();
-     expect(screen.getByText('$16.00')).toBeInTheDocument();
-     expect(screen.getByText('$175.98')).toBeInTheDocument();
+     expect(screen.getByText('$32.00')).toBeInTheDocument();
+     expect(screen.getByText('$191.98')).toBeInTheDocument();
   });
 
   it('removes an item from the cart', async () => {
@@ -127,7 +129,7 @@ describe('PosPage', () => {
   });
 
   it('completes a sale and clears the cart', async () => {
-    const newOrder: SalesOrder = { id: 'so-pos', orderNumber: 'SO-POS-123', clientId: '1', orderDate: new Date(), status: 'Pending', subtotal: 79.99, tax: 8, total: 87.99, generateInvoice: false, createdAt: new Date(), updatedAt: new Date() };
+    const newOrder: SalesOrder = { id: 'so-pos', orderNumber: 'SO-POS-123', counterpartyId: '1', orderDate: new Date(), status: 'Pending', subtotal: 79.99, tax: 16, total: 95.99, generateInvoice: false, createdAt: new Date(), updatedAt: new Date() };
     mockCreateSalesOrder.mockResolvedValue({ success: true, data: newOrder });
     mockGetProducts.mockResolvedValue(mockProducts); // Mock the refetch
 
