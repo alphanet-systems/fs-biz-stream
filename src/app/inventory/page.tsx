@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useState, useMemo, useTransition } from "react";
-import { PlusCircle, Search, File, CheckCircle, XCircle, MoreHorizontal } from "lucide-react";
+import React, { useState, useEffect, useTransition } from "react";
+import { PlusCircle, Search, File, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +32,21 @@ import { type Product } from "@prisma/client";
 import { createProduct, getProducts, exportToCsv } from "@/lib/actions";
 import { ImportDialog } from "@/components/ImportDialog";
 import { useDataFetch } from "@/hooks/use-data-fetch";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
+
+const productSchema = z.object({
+  name: z.string().min(1, "Product name is required."),
+  sku: z.string().min(1, "SKU is required."),
+  stock: z.coerce.number().int().nonnegative("Stock must be a non-negative number."),
+  price: z.coerce.number().positive("Price must be a positive number."),
+  category: z.string().optional(),
+});
+
+type ProductFormValues = z.infer<typeof productSchema>;
 
 export default function InventoryPage() {
   const { data: productList, setData: setProductList, refetch: fetchProducts } = useDataFetch(getProducts, []);
@@ -173,65 +187,26 @@ export default function InventoryPage() {
 }
 
 function AddProductSheet({ onProductCreated }: { onProductCreated: (product: Product) => void }) {
-    const [name, setName] = useState('');
-    const [sku, setSku] = useState('');
-    const [stock, setStock] = useState('');
-    const [price, setPrice] = useState('');
-    const [category, setCategory] = useState('');
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
-
-    const [isNameValid, setIsNameValid] = useState<boolean | null>(null);
-    const [isSkuValid, setIsSkuValid] = useState<boolean | null>(null);
-    const [isStockValid, setIsStockValid] = useState<boolean | null>(null);
-    const [isPriceValid, setIsPriceValid] = useState<boolean | null>(null);
-    
     const { toast } = useToast();
-
-    const isFormValid = useMemo(() => {
-        return isNameValid === true && isSkuValid === true && isStockValid === true && isPriceValid === true;
-    }, [isNameValid, isSkuValid, isStockValid, isPriceValid]);
-
-    const validateField = (field: 'name' | 'sku' | 'stock' | 'price', value: string) => {
-        const isNotEmpty = value.trim() !== '';
-        switch (field) {
-            case 'name':
-                setIsNameValid(isNotEmpty);
-                break;
-            case 'sku':
-                setIsSkuValid(isNotEmpty);
-                break;
-            case 'stock':
-                setIsStockValid(isNotEmpty && !isNaN(Number(value)) && Number(value) >= 0);
-                break;
-            case 'price':
-                setIsPriceValid(isNotEmpty && !isNaN(Number(value)) && Number(value) > 0);
-                break;
-        }
-    };
     
-    const resetForm = () => {
-        setName('');
-        setSku('');
-        setStock('');
-        setPrice('');
-        setCategory('');
-        setIsNameValid(null);
-        setIsSkuValid(null);
-        setIsStockValid(null);
-        setIsPriceValid(null);
-    };
+    const form = useForm<ProductFormValues>({
+      resolver: zodResolver(productSchema),
+      defaultValues: {
+        name: "",
+        sku: "",
+        stock: 0,
+        price: 0,
+        category: "",
+      },
+    });
 
-    const handleSaveProduct = () => {
-        if (!isFormValid) return;
-
+    const handleSaveProduct = (values: ProductFormValues) => {
         startTransition(async () => {
             const result = await createProduct({
-                name,
-                sku,
-                stock: Number(stock),
-                price: Number(price),
-                category: category || null,
+                ...values,
+                category: values.category || null,
                 imageUrl: "https://placehold.co/100x100.png",
             });
 
@@ -241,7 +216,7 @@ function AddProductSheet({ onProductCreated }: { onProductCreated: (product: Pro
                     title: "Product Saved",
                     description: `${result.data.name} has been successfully added.`,
                 });
-                resetForm();
+                form.reset();
                 setOpen(false);
             } else {
                 toast({
@@ -252,6 +227,13 @@ function AddProductSheet({ onProductCreated }: { onProductCreated: (product: Pro
             }
         });
     };
+
+    // Reset form when sheet is closed
+    useEffect(() => {
+        if (!open) {
+            form.reset();
+        }
+    }, [open, form]);
 
     return (
         <Sheet open={open} onOpenChange={setOpen}>
@@ -269,54 +251,84 @@ function AddProductSheet({ onProductCreated }: { onProductCreated: (product: Pro
                     </SheetDescription>
                 </SheetHeader>
                 <Separator className="my-4"/>
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="name">Product Name *</Label>
-                        <Input id="name" placeholder="e.g., Ergo-Comfort Keyboard" value={name} onChange={e => { setName(e.target.value); validateField('name', e.target.value); }} onBlur={e => validateField('name', e.target.value)}/>
-                        {isNameValid === false && <ValidationMessage isValid={false} message="Name is required." />}
-                        {isNameValid === true && <ValidationMessage isValid={true} message="Name is valid." />}
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="sku">SKU *</Label>
-                        <Input id="sku" placeholder="e.g., KB-4532" value={sku} onChange={e => { setSku(e.target.value); validateField('sku', e.target.value); }} onBlur={e => validateField('sku', e.target.value)}/>
-                        {isSkuValid === false && <ValidationMessage isValid={false} message="SKU is required." />}
-                        {isSkuValid === true && <ValidationMessage isValid={true} message="SKU is valid." />}
-                    </div>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="stock">Stock Quantity *</Label>
-                            <Input id="stock" type="number" placeholder="e.g., 120" value={stock} onChange={e => { setStock(e.target.value); validateField('stock', e.target.value); }} onBlur={e => validateField('stock', e.target.value)} />
-                            {isStockValid === false && <ValidationMessage isValid={false} message="Must be a valid number." />}
-                            {isStockValid === true && <ValidationMessage isValid={true} message="Stock is valid." />}
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleSaveProduct)} className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Product Name *</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., Ergo-Comfort Keyboard" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="sku"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>SKU *</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., KB-4532" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="stock"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Stock Quantity *</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="e.g., 120" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="price"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Price *</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="e.g., 79.99" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="price">Price *</Label>
-                            <Input id="price" type="number" placeholder="e.g., 79.99" value={price} onChange={e => { setPrice(e.target.value); validateField('price', e.target.value); }} onBlur={e => validateField('price', e.target.value)} />
-                            {isPriceValid === false && <ValidationMessage isValid={false} message="Must be a valid positive price." />}
-                            {isPriceValid === true && <ValidationMessage isValid={true} message="Price is valid." />}
+                        <FormField
+                            control={form.control}
+                            name="category"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Category</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., Electronics" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <div className="mt-6 flex justify-end gap-2 pt-4">
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={isPending}>
+                              {isPending ? "Saving..." : "Save Product"}
+                            </Button>
                         </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="category">Category</Label>
-                        <Input id="category" placeholder="e.g., Electronics" value={category} onChange={e => setCategory(e.target.value)} />
-                    </div>
-                </div>
-                <div className="mt-6 flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSaveProduct} disabled={!isFormValid || isPending}>
-                      {isPending ? "Saving..." : "Save Product"}
-                    </Button>
-                </div>
+                    </form>
+                </Form>
             </SheetContent>
         </Sheet>
     )
-}
-
-function ValidationMessage({ isValid, message }: { isValid: boolean; message: string }) {
-    return (
-        <div className={cn("flex items-center gap-2 text-sm", isValid ? "text-green-600" : "text-red-600")}>
-            {isValid ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-            <p>{message}</p>
-        </div>
-    );
 }
