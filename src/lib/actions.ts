@@ -323,6 +323,48 @@ export async function createWallet(data: { name: string, balance: number }): Pro
     }
 }
 
+export async function transferBetweenWallets(data: { fromWalletId: string; toWalletId: string; amount: number }): Promise<ServerActionResult<{ success: boolean }>> {
+    const { fromWalletId, toWalletId, amount } = data;
+
+    if (fromWalletId === toWalletId) {
+        return { success: false, error: "Source and destination wallets cannot be the same." };
+    }
+    if (amount <= 0) {
+        return { success: false, error: "Transfer amount must be positive." };
+    }
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            // 1. Check if the source wallet has enough funds
+            const fromWallet = await tx.wallet.findUnique({ where: { id: fromWalletId } });
+            if (!fromWallet || fromWallet.balance < amount) {
+                throw new Error("Insufficient funds in the source wallet.");
+            }
+
+            // 2. Decrement balance from the source wallet
+            await tx.wallet.update({
+                where: { id: fromWalletId },
+                data: { balance: { decrement: amount } },
+            });
+
+            // 3. Increment balance in the destination wallet
+            await tx.wallet.update({
+                where: { id: toWalletId },
+                data: { balance: { increment: amount } },
+            });
+            
+            // Note: We are not creating a payment record for this transfer as it's an internal movement of funds.
+        });
+
+        revalidatePath('/payments');
+        return { success: true, data: { success: true } };
+    } catch (error) {
+        console.error("Error transferring funds:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, error: `Failed to transfer funds: ${errorMessage}` };
+    }
+}
+
 
 // Payment Actions
 export async function getPayments(): Promise<(Payment & { counterparty: Counterparty, wallet: Wallet })[]> {

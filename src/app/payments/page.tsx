@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useTransition, useEffect } from "react";
-import { PlusCircle, Search, File, ArrowUpCircle, ArrowDownCircle, Wallet as WalletIcon, Plus } from "lucide-react";
+import { PlusCircle, Search, File, ArrowUpCircle, ArrowDownCircle, Wallet as WalletIcon, Plus, Replace } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/hooks/use-toast";
 import { type Payment, type Counterparty, type Wallet } from "@prisma/client";
-import { createPayment, getPayments, getCounterparties, getWallets, createWallet } from "@/lib/actions";
+import { createPayment, getPayments, getCounterparties, getWallets, createWallet, transferBetweenWallets } from "@/lib/actions";
 import { useDataFetch } from "@/hooks/use-data-fetch";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -62,6 +62,7 @@ export default function PaymentsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+            <TransferFundsSheet wallets={wallets} onTransferSuccess={fetchData} />
             <AddPaymentSheet type="Received" wallets={wallets} onPaymentAdded={fetchData} />
             <AddPaymentSheet type="Sent" wallets={wallets} onPaymentAdded={fetchData} />
         </div>
@@ -437,5 +438,113 @@ function AddWalletSheet({ onWalletCreated }: { onWalletCreated: () => void }) {
     )
 }
 
-    
-    
+const transferSchema = z.object({
+    fromWalletId: z.string().min(1, "Source wallet is required."),
+    toWalletId: z.string().min(1, "Destination wallet is required."),
+    amount: z.coerce.number().positive("Amount must be a positive number."),
+}).refine(data => data.fromWalletId !== data.toWalletId, {
+    message: "Source and destination wallets cannot be the same.",
+    path: ["toWalletId"],
+});
+
+type TransferFormValues = z.infer<typeof transferSchema>;
+
+function TransferFundsSheet({ wallets, onTransferSuccess }: { wallets: Wallet[], onTransferSuccess: () => void }) {
+    const [open, setOpen] = useState(false);
+    const [isPending, startTransition] = useTransition();
+    const { toast } = useToast();
+
+    const form = useForm<TransferFormValues>({
+        resolver: zodResolver(transferSchema),
+        defaultValues: {
+            fromWalletId: undefined,
+            toWalletId: undefined,
+            amount: 0,
+        },
+    });
+
+    useEffect(() => {
+        if (!open) {
+            form.reset();
+        }
+    }, [open, form]);
+
+    const handleTransfer = (values: TransferFormValues) => {
+        startTransition(async () => {
+            const result = await transferBetweenWallets(values);
+            if (result.success) {
+                toast({ title: "Transfer Successful", description: `Successfully transferred $${values.amount.toFixed(2)}.` });
+                onTransferSuccess();
+                setOpen(false);
+            } else {
+                toast({ title: "Transfer Failed", description: result.error, variant: "destructive" });
+            }
+        });
+    };
+
+    return (
+        <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+                <Button variant="outline" onClick={() => setOpen(true)}>
+                    <Replace className="mr-2 h-4 w-4" /> Transfer Funds
+                </Button>
+            </SheetTrigger>
+            <SheetContent className="sm:max-w-md">
+                <SheetHeader>
+                    <SheetTitle>Transfer Between Wallets</SheetTitle>
+                    <SheetDescription>Move funds from one wallet to another.</SheetDescription>
+                </SheetHeader>
+                <Separator className="my-4"/>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleTransfer)} className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="fromWalletId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>From Wallet *</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select source wallet" /></SelectTrigger></FormControl>
+                                        <SelectContent>{wallets.map(w => <SelectItem key={w.id} value={w.id}>{w.name} (${w.balance.toFixed(2)})</SelectItem>)}</SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="toWalletId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>To Wallet *</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select destination wallet" /></SelectTrigger></FormControl>
+                                        <SelectContent>{wallets.map(w => <SelectItem key={w.id} value={w.id}>{w.name} (${w.balance.toFixed(2)})</SelectItem>)}</SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="amount"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Amount *</FormLabel>
+                                    <FormControl><Input type="number" placeholder="e.g., 100.00" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <div className="mt-6 flex justify-end gap-2 pt-4">
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={isPending}>
+                                {isPending ? "Transferring..." : "Confirm Transfer"}
+                            </Button>
+                        </div>
+                    </form>
+                </Form>
+            </SheetContent>
+        </Sheet>
+    )
+}
