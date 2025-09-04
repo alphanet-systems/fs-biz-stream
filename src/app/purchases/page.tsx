@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type PurchaseOrder, type Counterparty } from "@prisma/client";
 import { getPurchaseOrders, exportToCsv } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
+import { useDataFetch } from "@/hooks/use-data-fetch";
 
 type PurchaseOrderWithCounterparty = PurchaseOrder & { counterparty: Counterparty };
 
@@ -45,14 +46,9 @@ const getStatusVariant = (status: PurchaseOrder['status']) => {
 };
 
 export default function PurchasesPage() {
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrderWithCounterparty[]>([]);
+  const { data: purchaseOrders } = useDataFetch(getPurchaseOrders, []);
   const [isExporting, startExportTransition] = useTransition();
   const { toast } = useToast();
-
-
-  useEffect(() => {
-    getPurchaseOrders().then(setPurchaseOrders);
-  }, []);
   
   const handleExport = () => {
     startExportTransition(async () => {

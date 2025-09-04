@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useTransition } from "react";
+import React, { useState, useTransition } from "react";
 import { PlusCircle, Search, File, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,7 @@ import { createCounterparty, getCounterparties, exportToCsv } from "@/lib/action
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ImportDialog } from "@/components/ImportDialog";
+import { useDataFetch } from "@/hooks/use-data-fetch";
 import { type Counterparty as PrismaCounterparty } from '@prisma/client';
 
 type CounterpartyType = "CLIENT" | "VENDOR";
@@ -38,18 +39,10 @@ type Counterparty = Omit<PrismaCounterparty, 'types'> & {
 };
 
 export default function CounterpartiesPage() {
-  const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
+  const { data: counterparties, setData: setCounterparties, refetch: fetchCounterparties } = useDataFetch(getCounterparties, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [isExporting, startExportTransition] = useTransition();
   const { toast } = useToast();
-
-  const fetchCounterparties = () => {
-    getCounterparties().then(setCounterparties);
-  };
-
-  React.useEffect(() => {
-    fetchCounterparties();
-  }, []);
 
   const filteredCounterparties = counterparties.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -183,7 +176,7 @@ function AddCounterpartySheet({ onCounterpartyCreated }: { onCounterpartyCreated
     
     const { toast } = useToast();
 
-    const isFormValid = useMemo(() => {
+    const isFormValid = React.useMemo(() => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return name.trim() !== '' && emailRegex.test(email) && types.length > 0;
     }, [name, email, types]);

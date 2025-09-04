@@ -32,20 +32,13 @@ import { useToast } from "@/hooks/use-toast";
 import { type Product } from "@prisma/client";
 import { createProduct, getProducts, exportToCsv } from "@/lib/actions";
 import { ImportDialog } from "@/components/ImportDialog";
+import { useDataFetch } from "@/hooks/use-data-fetch";
 
 export default function InventoryPage() {
-  const [productList, setProductList] = useState<Product[]>([]);
+  const { data: productList, setData: setProductList, refetch: fetchProducts } = useDataFetch(getProducts, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [isExporting, startExportTransition] = useTransition();
   const { toast } = useToast();
-
-  const fetchProducts = () => {
-    getProducts().then(setProductList);
-  };
-  
-  React.useEffect(() => {
-    fetchProducts();
-  }, []);
 
   const onProductCreated = (newProduct: Product) => {
     setProductList(prevList => [newProduct, ...prevList]);

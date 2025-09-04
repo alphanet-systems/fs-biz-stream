@@ -1,9 +1,9 @@
 
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
+import React, { useState, useTransition } from "react";
 import Link from "next/link";
-import { PlusCircle, Search, File, FileText } from "lucide-react";
+import { PlusCircle, Search, File, FileText, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,12 +23,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type SalesOrder, type Counterparty } from "@prisma/client";
 import { getSalesOrders, exportToCsv } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
+import { useDataFetch } from "@/hooks/use-data-fetch";
 
 type SalesOrderWithCounterparty = SalesOrder & { counterparty: Counterparty };
 
@@ -46,13 +46,9 @@ const getStatusVariant = (status: SalesOrder['status']) => {
 };
 
 export default function SalesPage() {
-  const [salesOrders, setSalesOrders] = useState<SalesOrderWithCounterparty[]>([]);
+  const { data: salesOrders } = useDataFetch(getSalesOrders, []);
   const [isExporting, startExportTransition] = useTransition();
   const { toast } = useToast();
-
-  useEffect(() => {
-    getSalesOrders().then(setSalesOrders);
-  }, []);
 
   const handleExport = () => {
     startExportTransition(async () => {

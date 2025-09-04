@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from "@/hooks/use-toast";
 import { type Payment, type Counterparty, type Wallet } from "@prisma/client";
 import { createPayment, getPayments, getCounterparties, getWallets, createWallet } from "@/lib/actions";
+import { useDataFetch } from "@/hooks/use-data-fetch";
 
 const getStatusVariant = (status: "Received" | "Sent") => {
   return status === "Received" 
@@ -33,25 +34,14 @@ const getStatusVariant = (status: "Received" | "Sent") => {
 type PaymentWithRelations = Payment & { counterparty: Counterparty, wallet: Wallet };
 
 export default function PaymentsPage() {
-  const [paymentList, setPaymentList] = useState<PaymentWithRelations[]>([]);
-  const [wallets, setWallets] = useState<Wallet[]>([]);
+  const { data: paymentList, refetch: refetchPayments } = useDataFetch(getPayments, []);
+  const { data: wallets, refetch: refetchWallets } = useDataFetch(getWallets, []);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isPending, startTransition] = useTransition();
 
   const fetchData = () => {
-    startTransition(async () => {
-        const [paymentsData, walletsData] = await Promise.all([
-            getPayments(),
-            getWallets(),
-        ]);
-        setPaymentList(paymentsData);
-        setWallets(walletsData);
-    });
+    refetchPayments();
+    refetchWallets();
   }
-
-  React.useEffect(() => {
-    fetchData();
-  }, []);
   
   const filteredPayments = paymentList.filter(payment =>
     payment.counterparty.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
