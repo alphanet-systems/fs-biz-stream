@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -15,10 +15,14 @@ import { cn } from "@/lib/utils";
 import { type CalendarEvent, type Counterparty } from "@/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getCounterparties } from "@/lib/actions";
 import { useDataFetch } from "@/hooks/use-data-fetch";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
 
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -126,22 +130,47 @@ export default function CalendarPage() {
   );
 }
 
-function AddEventDialog() {
-  const [eventTitle, setEventTitle] = useState('');
-  const [eventDate, setEventDate] = useState('');
-  const { data: allClients } = useDataFetch(() => getCounterparties('CLIENT'), []);
+const eventSchema = z.object({
+    title: z.string().min(1, "Title is required."),
+    dateTime: z.string().min(1, "Date and time are required."),
+    description: z.string().optional(),
+});
 
+type EventFormValues = z.infer<typeof eventSchema>;
+
+function AddEventDialog() {
+  const [open, setOpen] = useState(false);
+  const { data: allClients } = useDataFetch(() => getCounterparties('CLIENT'), []);
+  
+  const form = useForm<EventFormValues>({
+    resolver: zodResolver(eventSchema),
+    defaultValues: {
+      title: "",
+      dateTime: "",
+      description: "",
+    },
+  });
+
+  const eventTitle = form.watch("title");
   const suggestedClients = eventTitle ? allClients.filter(c => c.name.toLowerCase().includes(eventTitle.toLowerCase())) : [];
 
-  const isFormValid = useMemo(() => {
-    return eventTitle.trim() !== '' && eventDate.trim() !== '';
-  }, [eventTitle, eventDate]);
+  const handleSave = (values: EventFormValues) => {
+    // In a real app, you would save this to the database.
+    console.log("Saving event:", values);
+    form.reset();
+    setOpen(false);
+  };
 
+  useEffect(() => {
+    if (!open) {
+      form.reset();
+    }
+  }, [open, form]);
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button onClick={() => setOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Add Event
         </Button>
       </DialogTrigger>
@@ -149,49 +178,74 @@ function AddEventDialog() {
         <DialogHeader>
           <DialogTitle>Add New Event</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="title" className="text-right">
-              Title
-            </Label>
-            <Input id="title" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className="col-span-3" placeholder="e.g., Meeting with Innovate Inc." />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="date" className="text-right">
-              Date & Time
-            </Label>
-            <Input id="date" type="datetime-local" value={eventDate} onChange={(e) => setEventDate(e.target.value)} className="col-span-3" />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="description" className="text-right">
-              Description
-            </Label>
-            <Textarea id="description" className="col-span-3" placeholder="Optional notes about the event."/>
-          </div>
-        </div>
-        {eventTitle.length > 2 && (
-        <div className="space-y-2">
-            <Label className="flex items-center gap-2 text-muted-foreground"><Users className="h-4 w-4" /> AI: Suggested Clients</Label>
-            <div className="p-3 bg-muted/50 rounded-lg space-y-2">
-            {suggestedClients.length > 0 ? (
-                suggestedClients.map(client => (
-                    <div key={client.id} className="text-sm p-2 bg-background rounded-md flex justify-between items-center">
-                        <span>{client.name}</span>
-                        <Button variant="ghost" size="sm">Link</Button>
-                    </div>
-                ))
-            ) : (
-                <p className="text-sm text-muted-foreground text-center p-2">No clients match '{eventTitle}'.</p>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Meeting with Innovate Inc." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="dateTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Date & Time</FormLabel>
+                  <FormControl>
+                    <Input type="datetime-local" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Optional notes about the event." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {eventTitle && eventTitle.length > 2 && (
+              <div className="space-y-2 pt-4">
+                  <FormLabel className="flex items-center gap-2 text-muted-foreground"><Users className="h-4 w-4" /> AI: Suggested Clients</FormLabel>
+                  <div className="p-3 bg-muted/50 rounded-lg space-y-2">
+                  {suggestedClients.length > 0 ? (
+                      suggestedClients.map(client => (
+                          <div key={client.id} className="text-sm p-2 bg-background rounded-md flex justify-between items-center">
+                              <span>{client.name}</span>
+                              <Button variant="ghost" size="sm">Link</Button>
+                          </div>
+                      ))
+                  ) : (
+                      <p className="text-sm text-muted-foreground text-center p-2">No clients match '{eventTitle}'.</p>
+                  )}
+                  </div>
+              </div>
             )}
+
+            <div className="flex justify-end gap-2 pt-4">
+                <DialogClose asChild>
+                    <Button type="button" variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button type="submit">Save Event</Button>
             </div>
-        </div>
-        )}
-        <div className="flex justify-end gap-2">
-            <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button disabled={!isFormValid}>Save Event</Button>
-        </div>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   )
