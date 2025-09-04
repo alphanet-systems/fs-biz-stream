@@ -25,21 +25,26 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { createCounterparty, getCounterparties, exportToCsv } from "@/lib/actions";
+import { createCounterparty, updateCounterparty, getCounterparties, exportToCsv, deleteCounterparty, type Counterparty } from "@/lib/actions";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ImportDialog } from "@/components/ImportDialog";
 import { useDataFetch } from "@/hooks/use-data-fetch";
-import { type Counterparty as PrismaCounterparty } from '@prisma/client';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-type Counterparty = Omit<PrismaCounterparty, 'types'> & {
-  types: string[];
-};
 
 const counterpartySchema = z.object({
   name: z.string().min(1, "Name is required."),
@@ -58,6 +63,11 @@ export default function CounterpartiesPage() {
   const { data: counterparties, setData: setCounterparties, refetch: fetchCounterparties } = useDataFetch(getCounterparties, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [isExporting, startExportTransition] = useTransition();
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [editingCounterparty, setEditingCounterparty] = useState<Counterparty | null>(null);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [deletingCounterparty, setDeletingCounterparty] = useState<Counterparty | null>(null);
+  const [isDeleting, startDeleteTransition] = useTransition();
   const { toast } = useToast();
 
   const filteredCounterparties = counterparties.filter(c =>
@@ -65,9 +75,51 @@ export default function CounterpartiesPage() {
     c.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  const onCounterpartyCreated = (newCounterparty: Counterparty) => {
-    setCounterparties(prev => [newCounterparty, ...prev]);
+  const onFormSubmit = (updatedCounterparty: Counterparty) => {
+    if (editingCounterparty) {
+        setCounterparties(prev => prev.map(c => c.id === updatedCounterparty.id ? updatedCounterparty : c));
+    } else {
+        setCounterparties(prev => [updatedCounterparty, ...prev]);
+    }
   };
+
+  const handleAddNew = () => {
+    setEditingCounterparty(null);
+    setIsSheetOpen(true);
+  }
+
+  const handleEdit = (counterparty: Counterparty) => {
+    setEditingCounterparty(counterparty);
+    setIsSheetOpen(true);
+  }
+  
+  const openDeleteDialog = (counterparty: Counterparty) => {
+    setDeletingCounterparty(counterparty);
+    setIsDeleteAlertOpen(true);
+  }
+  
+  const handleDelete = () => {
+    if (!deletingCounterparty) return;
+    
+    startDeleteTransition(async () => {
+        const result = await deleteCounterparty(deletingCounterparty.id);
+        if (result.success) {
+            setCounterparties(prev => prev.filter(c => c.id !== deletingCounterparty.id));
+            toast({
+                title: "Counterparty Deleted",
+                description: `${deletingCounterparty.name} has been successfully deleted.`,
+            });
+        } else {
+            toast({
+                title: "Error",
+                description: result.error,
+                variant: "destructive",
+            });
+        }
+        setIsDeleteAlertOpen(false);
+        setDeletingCounterparty(null);
+    });
+  }
 
   const handleExport = () => {
     startExportTransition(async () => {
@@ -111,7 +163,10 @@ export default function CounterpartiesPage() {
                 <File className="h-4 w-4 mr-2" />
                 {isExporting ? 'Exporting...' : 'Export'}
               </Button>
-              <AddCounterpartySheet onCounterpartyCreated={onCounterpartyCreated} />
+               <Button onClick={handleAddNew}>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add New
+              </Button>
             </div>
           </div>
           <div className="relative mt-4">
@@ -164,10 +219,10 @@ export default function CounterpartiesPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEdit(counterparty)}>Edit</DropdownMenuItem>
                         <DropdownMenuItem>View History</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600" onClick={() => openDeleteDialog(counterparty)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -177,75 +232,99 @@ export default function CounterpartiesPage() {
           </Table>
         </CardContent>
       </Card>
+      
+      <AddCounterpartySheet
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+        onFormSubmit={onFormSubmit}
+        counterparty={editingCounterparty}
+      />
+      
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the counterparty
+                    "{deletingCounterparty?.name}".
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+                    {isDeleting ? "Deleting..." : "Delete"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-function AddCounterpartySheet({ onCounterpartyCreated }: { onCounterpartyCreated: (c: Counterparty) => void }) {
-    const [open, setOpen] = useState(false);
+interface AddCounterpartySheetProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onFormSubmit: (c: Counterparty) => void;
+    counterparty: Counterparty | null;
+}
+
+function AddCounterpartySheet({ open, onOpenChange, onFormSubmit, counterparty }: AddCounterpartySheetProps) {
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
     
     const form = useForm<CounterpartyFormValues>({
         resolver: zodResolver(counterpartySchema),
-        defaultValues: {
-            name: "",
-            email: "",
-            phone: "",
-            address: "",
-            types: ["CLIENT"],
-        },
     });
+
+    useEffect(() => {
+        if (open) {
+            form.reset(counterparty ? {
+                name: counterparty.name,
+                email: counterparty.email,
+                phone: counterparty.phone || '',
+                address: counterparty.address || '',
+                types: counterparty.types
+            } : {
+                name: "",
+                email: "",
+                phone: "",
+                address: "",
+                types: ["CLIENT"],
+            });
+        }
+    }, [open, counterparty, form]);
 
     const handleSave = (values: CounterpartyFormValues) => {
         startTransition(async () => {
-          const result = await createCounterparty({
-            name: values.name,
-            email: values.email,
-            phone: values.phone || null,
-            address: values.address || null,
-            types: values.types,
-          });
+          const action = counterparty ? updateCounterparty : createCounterparty;
+          const result = await action({ ...values, id: counterparty?.id });
           
           if (result.success && result.data) {
-            onCounterpartyCreated(result.data);
+            onFormSubmit(result.data);
             toast({
-                title: "Counterparty Saved",
-                description: `${result.data.name} has been successfully added.`,
+                title: `Counterparty ${counterparty ? 'Updated' : 'Saved'}`,
+                description: `${result.data.name} has been successfully ${counterparty ? 'updated' : 'added'}.`,
             });
-            form.reset();
-            setOpen(false);
+            onOpenChange(false);
           } else {
              toast({
                 title: "Error",
-                description: result.error || "Could not save the counterparty.",
+                description: result.error || "An unknown error occurred.",
                 variant: "destructive",
             });
           }
         });
     };
     
-    // Reset form when sheet is closed
-    useEffect(() => {
-        if (!open) {
-            form.reset();
-        }
-    }, [open, form]);
+    const title = counterparty ? "Edit Counterparty" : "Add New Counterparty";
+    const description = counterparty ? "Update the details of the existing counterparty." : "A counterparty can be a client, a vendor, or both.";
 
     return (
-        <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button onClick={() => setOpen(true)}>
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Add New
-              </Button>
-            </SheetTrigger>
+        <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent className="sm:max-w-lg">
                 <SheetHeader>
-                    <SheetTitle>Add New Counterparty</SheetTitle>
-                    <SheetDescription>
-                        A counterparty can be a client, a vendor, or both.
-                    </SheetDescription>
+                    <SheetTitle>{title}</SheetTitle>
+                    <SheetDescription>{description}</SheetDescription>
                 </SheetHeader>
                 <Separator className="my-4"/>
                 <Form {...form}>
@@ -330,7 +409,7 @@ function AddCounterpartySheet({ onCounterpartyCreated }: { onCounterpartyCreated
                                 <FormItem>
                                     <FormLabel>Phone Number</FormLabel>
                                     <FormControl>
-                                        <Input type="tel" placeholder="e.g., 123-456-7890" {...field} />
+                                        <Input type="tel" placeholder="e.g., 123-456-7890" {...field} value={field.value ?? ''} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -343,14 +422,14 @@ function AddCounterpartySheet({ onCounterpartyCreated }: { onCounterpartyCreated
                                 <FormItem>
                                     <FormLabel>Address</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="e.g., 123 Main St, Anytown, USA" {...field} />
+                                        <Input placeholder="e.g., 123 Main St, Anytown, USA" {...field} value={field.value ?? ''} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
                         <div className="mt-6 flex justify-end gap-2 pt-4">
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                             <Button type="submit" disabled={isPending}>
                               {isPending ? "Saving..." : "Save"}
                             </Button>

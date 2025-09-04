@@ -15,7 +15,7 @@ type ServerActionResult<T> = {
 };
 
 // Custom Counterparty type for the application to handle the string-to-array conversion
-type Counterparty = Omit<PrismaCounterparty, 'types'> & {
+export type Counterparty = Omit<PrismaCounterparty, 'types'> & {
   types: string[];
 };
 
@@ -78,6 +78,7 @@ export async function getCounterparties(type?: 'CLIENT' | 'VENDOR'): Promise<Cou
 }
 
 type CounterpartyInput = {
+    id?: string; // Optional for updates
     name: string;
     email: string;
     phone: string | null;
@@ -98,9 +99,60 @@ export async function createCounterparty(data: CounterpartyInput): Promise<Serve
     return { success: true, data: { ...newCounterparty, types: newCounterparty.types.split(',').filter(t => t) }};
   } catch (error) {
     console.error('Error creating counterparty:', error);
+    if ((error as any).code === 'P2002') {
+        return { success: false, error: 'A counterparty with this email already exists.' };
+    }
     return { success: false, error: 'Failed to create counterparty.' };
   }
 }
+
+export async function updateCounterparty(data: CounterpartyInput): Promise<ServerActionResult<Counterparty>> {
+  if (!data.id) {
+    return { success: false, error: 'Counterparty ID is required for updates.' };
+  }
+  try {
+    const updatedCounterparty = await prisma.counterparty.update({
+      where: { id: data.id },
+      data: {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        types: data.types.join(','),
+      },
+    });
+    revalidatePath('/clients');
+    return { success: true, data: { ...updatedCounterparty, types: updatedCounterparty.types.split(',').filter(t => t) } };
+  } catch (error) {
+    console.error('Error updating counterparty:', error);
+     if ((error as any).code === 'P2002') {
+        return { success: false, error: 'A counterparty with this email already exists.' };
+    }
+    return { success: false, error: 'Failed to update counterparty.' };
+  }
+}
+
+export async function deleteCounterparty(id: string): Promise<ServerActionResult<{ id: string }>> {
+  try {
+    // Check if the counterparty is associated with any orders
+    const salesOrders = await prisma.salesOrder.count({ where: { counterpartyId: id } });
+    const purchaseOrders = await prisma.purchaseOrder.count({ where: { counterpartyId: id } });
+
+    if (salesOrders > 0 || purchaseOrders > 0) {
+      return { success: false, error: 'Cannot delete counterparty with existing sales or purchase orders.' };
+    }
+    
+    await prisma.counterparty.delete({
+      where: { id },
+    });
+    revalidatePath('/clients');
+    return { success: true, data: { id } };
+  } catch (error) {
+    console.error('Error deleting counterparty:', error);
+    return { success: false, error: 'Failed to delete counterparty.' };
+  }
+}
+
 
 // Product Actions
 export async function getProducts(): Promise<Product[]> {
