@@ -137,7 +137,7 @@ describe('NewSalePage', () => {
   });
 
   it('successfully creates a sales order and redirects', async () => {
-    const newOrder: SalesOrder = { id: 'so-new', orderNumber: 'SO-123456', clientId: '1', orderDate: new Date(), status: 'Pending', subtotal: 79.99, tax: 16, total: 95.99, generateInvoice: false, createdAt: new Date(), updatedAt: new Date() };
+    const newOrder: SalesOrder = { id: 'so-new', orderNumber: 'SO-123456', counterpartyId: '1', orderDate: new Date(), status: 'Pending', subtotal: 79.99, tax: 16, total: 95.99, generateInvoice: false, createdAt: new Date(), updatedAt: new Date() };
     mockCreateSalesOrder.mockResolvedValue({ success: true, data: newOrder });
 
     render(<NewSalePage />);
